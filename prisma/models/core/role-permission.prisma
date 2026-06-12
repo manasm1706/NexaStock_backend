@@ -1,0 +1,19 @@
+
+model RolePermission {
+  id           String     @id @default(cuid())
+  tenantId     String
+  roleId       String
+  permissionId String
+  allowed      Boolean    @default(true)
+  scope        Json?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+
+  tenant       Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission   Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, roleId, permissionId])
+  @@index([tenantId, roleId])
+  @@index([tenantId, permissionId])
+}

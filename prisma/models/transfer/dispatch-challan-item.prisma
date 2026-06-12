@@ -1,0 +1,28 @@
+model DispatchChallanItem {
+  id                String   @id @default(cuid())
+  tenantId          String
+  dispatchChallanId String
+  inventoryTransferItemId String?
+  productId         String
+  variantId         String?
+  lineNumber        Int
+  requestedQty      Int
+  packedQty         Int      @default(0)
+  dispatchedQty     Int      @default(0)
+  batchNumber       String?  @db.VarChar(120)
+  serialNumbers     Json?
+  storageBinId      String?
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  dispatchChallan   DispatchChallan @relation(fields: [dispatchChallanId], references: [id], onDelete: Cascade)
+  transferItem      InventoryTransferItem? @relation(fields: [inventoryTransferItemId], references: [id], onDelete: SetNull)
+  product           Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant           ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  storageBin        StorageBin? @relation(fields: [storageBinId], references: [id], onDelete: SetNull)
+
+  @@unique([dispatchChallanId, lineNumber])
+  @@index([tenantId, productId])
+}

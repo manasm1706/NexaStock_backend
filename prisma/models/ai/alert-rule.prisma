@@ -1,0 +1,21 @@
+model AlertRule {
+  id                String        @id @default(cuid())
+  tenantId          String
+  name              String        @db.VarChar(180)
+  module            String        @db.VarChar(120)
+  severity          AlertSeverity  @default(INFO)
+  condition         Json?
+  scheduleCron      String?       @db.VarChar(120)
+  isActive          Boolean       @default(true)
+  channelTargets    Json?
+  createdByUserId   String?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy         User?         @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  alerts            Alert[]
+
+  @@index([tenantId, module])
+}

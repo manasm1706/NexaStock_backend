@@ -1,0 +1,34 @@
+model GoodsReceiptNoteItem {
+  id                 String   @id @default(cuid())
+  tenantId           String
+  goodsReceiptNoteId String
+  purchaseOrderItemId String?
+  supplierInvoiceItemId String?
+  productId          String
+  variantId          String?
+  lineNumber         Int
+  batchNumber        String?  @db.VarChar(120)
+  expiryDate         DateTime?
+  manufacturedAt     DateTime?
+  expectedQty        Int
+  receivedQty        Int
+  acceptedQty        Int      @default(0)
+  rejectedQty        Int      @default(0)
+  damagedQty         Int      @default(0)
+  qualityStatus      String   @default("pending") @db.VarChar(60)
+  storageBinId       String?
+  metadata           Json?
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  tenant             Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  goodsReceiptNote   GoodsReceiptNote @relation(fields: [goodsReceiptNoteId], references: [id], onDelete: Cascade)
+  purchaseOrderItem  PurchaseOrderItem? @relation(fields: [purchaseOrderItemId], references: [id], onDelete: SetNull)
+  supplierInvoiceItem SupplierInvoiceItem? @relation(fields: [supplierInvoiceItemId], references: [id], onDelete: SetNull)
+  product            Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant            ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  storageBin         StorageBin? @relation(fields: [storageBinId], references: [id], onDelete: SetNull)
+
+  @@unique([goodsReceiptNoteId, lineNumber])
+  @@index([tenantId, productId])
+}

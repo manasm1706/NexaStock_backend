@@ -1,0 +1,28 @@
+model InventorySerial {
+  id              String   @id @default(cuid())
+  tenantId        String
+  inventoryId     String
+  batchId         String?
+  productId       String
+  variantId       String?
+  serialNumber    String   @db.VarChar(160)
+  imei            String?  @db.VarChar(40)
+  status          String   @default("available") @db.VarChar(40)
+  currentLocationId String?
+  currentBinId    String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventory       Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  batch           InventoryBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  currentLocation Location? @relation(fields: [currentLocationId], references: [id], onDelete: SetNull)
+  currentBin      StorageBin? @relation(fields: [currentBinId], references: [id], onDelete: SetNull)
+  movements       InventoryMovement[]
+
+  @@unique([tenantId, serialNumber])
+  @@index([tenantId, inventoryId])
+}

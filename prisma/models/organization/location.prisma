@@ -1,0 +1,58 @@
+model Location {
+  id              String         @id @default(cuid())
+  tenantId        String
+  parentLocationId String?
+  code            String         @db.VarChar(80)
+  name            String         @db.VarChar(180)
+  locationType    LocationType
+  status          LocationStatus @default(ACTIVE)
+  operationalModel OperationalModel @default(HYBRID)
+  email           String?        @db.VarChar(255)
+  phone           String?        @db.VarChar(32)
+  addressLine1    String?        @db.VarChar(255)
+  addressLine2    String?        @db.VarChar(255)
+  city            String?        @db.VarChar(120)
+  state           String?        @db.VarChar(120)
+  postalCode      String?        @db.VarChar(40)
+  country         String?        @db.VarChar(120)
+  timezone        String         @default("UTC") @db.VarChar(64)
+  latitude        Decimal?       @db.Decimal(10, 7)
+  longitude       Decimal?       @db.Decimal(10, 7)
+  metadata        Json?
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  deletedAt       DateTime?
+
+  stores          Store[]        @relation("LocationStores")
+
+  warehouses      Warehouse[]    @relation("LocationWarehouses")
+
+externalWarehouses ExternalWarehouse[] @relation("LocationExternalWarehouses")
+
+pickingTasks      PickingTask[] @relation("LocationPickingTasks")
+
+inventorySnapshots InventorySnapshot[] @relation("LocationInventorySnapshots")
+
+sales             Sale[] @relation("LocationSales")
+
+storageBins       StorageBin[] @relation("LocationStorageBins")
+
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentLocation  Location?      @relation("LocationHierarchy", fields: [parentLocationId], references: [id], onDelete: SetNull)
+  childLocations  Location[]     @relation("LocationHierarchy")
+  zones           LocationZone[]
+  inventories     Inventory[]
+  inventoryMovements InventoryMovement[]
+  posSessions     POSSession[]
+  inventorySerials InventorySerial[]
+  transferRequestsFrom TransferRequest[] @relation("RequestFromLocation")
+  transferRequestsTo   TransferRequest[] @relation("RequestToLocation")
+  inventoryTransfersFrom InventoryTransfer[] @relation("TransferFromLocation")
+  inventoryTransfersTo   InventoryTransfer[] @relation("TransferToLocation")
+  dispatchChallansOrigin DispatchChallan[] @relation("DCOriginLocation")
+  dispatchChallansDestination DispatchChallan[] @relation("DCDestinationLocation")
+
+  @@unique([tenantId, code])
+  @@index([tenantId, locationType])
+  @@index([tenantId, status])
+}

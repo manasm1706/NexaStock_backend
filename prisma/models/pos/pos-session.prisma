@@ -1,0 +1,27 @@
+model POSSession {
+  id                String          @id @default(cuid())
+  tenantId          String
+  locationId        String
+  openedByUserId    String
+  sessionNumber     String          @db.VarChar(120)
+  status            POSSessionStatus @default(OPEN)
+  openedAt          DateTime        @default(now())
+  closedAt          DateTime?
+  cashDrawerOpenAmount Decimal?      @db.Decimal(14, 2)
+  cashDrawerClosingAmount Decimal?   @db.Decimal(14, 2)
+  offlineMode       Boolean         @default(false)
+  deviceInfo        Json?
+  syncState         Json?
+  metadata          Json?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  tenant            Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location          Location        @relation(fields: [locationId], references: [id], onDelete: Restrict)
+  openedBy          User            @relation(fields: [openedByUserId], references: [id], onDelete: Restrict)
+  carts             Cart[]
+  sales             Sale[]
+
+  @@unique([tenantId, sessionNumber])
+  @@index([tenantId, locationId, status])
+}

@@ -1,0 +1,23 @@
+model ForecastRecord {
+  id                String   @id @default(cuid())
+  tenantId          String
+  forecastModelId   String
+  entityType        String   @db.VarChar(120)
+  entityId          String   @db.VarChar(120)
+  forecastDate      DateTime
+  horizonDays       Int
+  predictedValue    Decimal  @db.Decimal(18, 4)
+  lowerBound        Decimal? @db.Decimal(18, 4)
+  upperBound        Decimal? @db.Decimal(18, 4)
+  confidence        Float
+  actualValue       Decimal? @db.Decimal(18, 4)
+  errorScore        Decimal? @db.Decimal(18, 4)
+  dimensions        Json?
+  generatedAt       DateTime @default(now())
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  model             ForecastModel @relation(fields: [forecastModelId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, forecastDate])
+}

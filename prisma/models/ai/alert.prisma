@@ -1,0 +1,24 @@
+model Alert {
+  id                String        @id @default(cuid())
+  tenantId          String
+  alertRuleId       String?
+  severity          AlertSeverity @default(INFO)
+  status            AlertStatus   @default(OPEN)
+  entityType        String        @db.VarChar(120)
+  entityId          String        @db.VarChar(120)
+  title             String        @db.VarChar(255)
+  message           String
+  triggeredAt       DateTime      @default(now())
+  acknowledgedAt    DateTime?
+  resolvedAt        DateTime?
+  metadata          Json?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  tenant            Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  rule              AlertRule?    @relation(fields: [alertRuleId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, status])
+  @@index([tenantId, severity])
+  @@index([tenantId, entityType, entityId])
+}

@@ -1,0 +1,29 @@
+model SaleItem {
+  id               String   @id @default(cuid())
+  tenantId         String
+  saleId           String
+  productId        String
+  variantId        String?
+  lineNumber       Int
+  quantity         Int
+  unitPrice        Decimal  @db.Decimal(14, 4)
+  discountAmount   Decimal  @default(0) @db.Decimal(14, 2)
+  taxRate          Decimal  @default(0) @db.Decimal(7, 4)
+  taxAmount        Decimal  @default(0) @db.Decimal(14, 2)
+  lineTotal        Decimal  @db.Decimal(14, 2)
+  inventoryMovementId String?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  returnItems      ReturnItem[]
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale             Sale     @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  product          Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant          ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  inventoryMovement InventoryMovement? @relation(fields: [inventoryMovementId], references: [id], onDelete: SetNull)
+
+  @@unique([saleId, lineNumber])
+  @@index([tenantId, productId])
+}

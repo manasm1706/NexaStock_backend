@@ -1,0 +1,24 @@
+model AnomalyRecord {
+  id                String       @id @default(cuid())
+  tenantId          String
+  forecastModelId   String?
+  anomalyType       String       @db.VarChar(120)
+  entityType        String       @db.VarChar(120)
+  entityId          String       @db.VarChar(120)
+  score             Float
+  baselineValue     Decimal?     @db.Decimal(18, 4)
+  observedValue     Decimal?     @db.Decimal(18, 4)
+  explanation       String?
+  status            AnomalyStatus @default(OPEN)
+  detectedAt        DateTime     @default(now())
+  resolvedAt        DateTime?
+  metadata          Json?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  model             ForecastModel? @relation(fields: [forecastModelId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, status])
+}

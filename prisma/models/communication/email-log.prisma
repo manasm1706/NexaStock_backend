@@ -1,0 +1,19 @@
+model EmailLog {
+  id                String   @id @default(cuid())
+  tenantId          String
+  notificationId    String?
+  recipientEmail    String   @db.VarChar(255)
+  provider          String   @db.VarChar(80)
+  providerMessageId String?  @db.VarChar(120)
+  subject           String   @db.VarChar(255)
+  status            String   @default("queued") @db.VarChar(40)
+  payload           Json?
+  errorMessage      String?
+  sentAt            DateTime?
+  createdAt         DateTime @default(now())
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  notification      Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, providerMessageId])
+}

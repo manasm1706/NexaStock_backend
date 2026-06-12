@@ -1,0 +1,36 @@
+model InventoryTransfer {
+  id               String               @id @default(cuid())
+  tenantId         String
+  transferNumber   String               @db.VarChar(120)
+  transferRequestId String? @unique
+  fromLocationId   String
+  toLocationId     String
+  status           InventoryTransferStatus @default(DRAFT)
+  requestedByUserId String?
+  approvedByUserId String?
+  pickedByUserId   String?
+  dispatchedByUserId String?
+  receivedByUserId  String?
+  requestedAt      DateTime             @default(now())
+  approvedAt       DateTime?
+  dispatchedAt     DateTime?
+  inTransitAt      DateTime?
+  receivedAt       DateTime?
+  transportMetadata Json?
+  metadata         Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+  deletedAt        DateTime?
+
+  tenant           Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fromLocation     Location             @relation("TransferFromLocation", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation       Location             @relation("TransferToLocation", fields: [toLocationId], references: [id], onDelete: Restrict)
+  request          TransferRequest?     @relation("TransferRequestInventoryTransfer", fields: [transferRequestId], references: [id], onDelete: SetNull)
+  dispatchChallan  DispatchChallan?     @relation("InventoryTransferDispatchChallan")
+  items            InventoryTransferItem[]
+
+  @@unique([tenantId, transferNumber])
+  @@index([tenantId, fromLocationId])
+  @@index([tenantId, toLocationId])
+  @@index([tenantId, status])
+}

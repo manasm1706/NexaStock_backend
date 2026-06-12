@@ -1,0 +1,28 @@
+model Cart {
+  id                String       @id @default(cuid())
+  tenantId          String
+  posSessionId      String
+  customerId        String?
+  cartNumber        String       @db.VarChar(120)
+  status            CartStatus   @default(ACTIVE)
+  subtotal          Decimal      @default(0) @db.Decimal(14, 2)
+  discountTotal     Decimal      @default(0) @db.Decimal(14, 2)
+  taxTotal          Decimal      @default(0) @db.Decimal(14, 2)
+  grandTotal        Decimal      @default(0) @db.Decimal(14, 2)
+  currencyCode      String       @default("USD") @db.VarChar(8)
+  clientMutationId  String?      @db.VarChar(120)
+  metadata          Json?
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  sales             Sale[]
+
+  tenant            Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session           POSSession   @relation(fields: [posSessionId], references: [id], onDelete: Cascade)
+  customer          Customer?    @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  items             CartItem[]
+
+  @@unique([tenantId, cartNumber])
+  @@index([tenantId, posSessionId])
+  @@index([tenantId, status])
+}

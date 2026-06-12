@@ -1,0 +1,24 @@
+model ProductCategory {
+  id              String             @id @default(cuid())
+  tenantId        String
+  parentCategoryId String?
+  code            String             @db.VarChar(80)
+  name            String             @db.VarChar(180)
+  slug            String             @db.VarChar(180)
+  description     String?
+  sortOrder       Int                 @default(0)
+  metadata        Json?
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
+  deletedAt       DateTime?
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  parentCategory  ProductCategory?    @relation("CategoryHierarchy", fields: [parentCategoryId], references: [id], onDelete: SetNull)
+  childCategories ProductCategory[]   @relation("CategoryHierarchy")
+  subCategories   ProductSubCategory[]
+  products        Product[]
+
+  @@unique([tenantId, code])
+  @@unique([tenantId, slug])
+  @@index([tenantId, parentCategoryId])
+}

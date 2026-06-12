@@ -1,0 +1,30 @@
+model GoodsReceiptNote {
+  id                 String              @id @default(cuid())
+  tenantId           String
+  supplierId         String
+  purchaseOrderId    String?
+  supplierInvoiceId  String?
+  dispatchChallanId  String?
+  grnNumber          String              @db.VarChar(120)
+  status             GoodsReceiptNoteStatus @default(DRAFT)
+  receivedAt         DateTime            @default(now())
+  verifiedByUserId   String?
+  qualityStatus      String              @default("pending") @db.VarChar(60)
+  discrepancyNotes   String?
+  metadata           Json?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier           Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder      PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  supplierInvoice    SupplierInvoice?    @relation(fields: [supplierInvoiceId], references: [id], onDelete: SetNull)
+  dispatchChallan    DispatchChallan?    @relation(fields: [dispatchChallanId], references: [id], onDelete: SetNull)
+  verifiedBy         User?               @relation("GoodsReceiptNoteVerifiedBy", fields: [verifiedByUserId], references: [id], onDelete: SetNull)
+  items              GoodsReceiptNoteItem[]
+
+  @@unique([tenantId, grnNumber])
+  @@index([tenantId, supplierId])
+  @@index([tenantId, status])
+}

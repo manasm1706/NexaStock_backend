@@ -1,0 +1,34 @@
+model Invoice {
+  id               String        @id @default(cuid())
+  tenantId         String
+  saleId           String        @unique
+  customerId       String?
+  invoiceNumber    String        @db.VarChar(120)
+  invoiceStatus    InvoiceStatus @default(DRAFT)
+  billingType      String        @default("B2C") @db.VarChar(20)
+  gstTreatment     String        @default("tax_invoice") @db.VarChar(40)
+  placeOfSupply    String?       @db.VarChar(120)
+  invoiceDate      DateTime      @default(now())
+  dueDate          DateTime?
+  subtotal         Decimal       @db.Decimal(14, 2)
+  discountTotal    Decimal       @default(0) @db.Decimal(14, 2)
+  taxTotal         Decimal       @default(0) @db.Decimal(14, 2)
+  grandTotal       Decimal       @db.Decimal(14, 2)
+  balanceDue       Decimal       @default(0) @db.Decimal(14, 2)
+  taxBreakdown     Json?
+  qrCodeData       Json?
+  irn              String?       @db.VarChar(120)
+  metadata         Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  returns          Return[]
+
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale             Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  customer         Customer?     @relation(fields: [customerId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, invoiceDate])
+  @@index([tenantId, billingType])
+}

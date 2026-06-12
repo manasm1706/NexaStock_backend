@@ -1,0 +1,27 @@
+model PickingTaskItem {
+  id              String   @id @default(cuid())
+  tenantId        String
+  pickingTaskId   String
+  transferRequestItemId String?
+  productId       String
+  variantId       String?
+  lineNumber      Int
+  quantityRequired Int
+  quantityPicked  Int      @default(0)
+  storageBinId    String?
+  batchId         String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  task            PickingTask @relation(fields: [pickingTaskId], references: [id], onDelete: Cascade)
+  requestItem     TransferRequestItem? @relation(fields: [transferRequestItemId], references: [id], onDelete: SetNull)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  storageBin      StorageBin? @relation(fields: [storageBinId], references: [id], onDelete: SetNull)
+  batch           InventoryBatch? @relation(fields: [batchId], references: [id], onDelete: SetNull)
+
+  @@unique([pickingTaskId, lineNumber])
+  @@index([tenantId, productId])
+}

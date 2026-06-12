@@ -1,0 +1,24 @@
+model StockAdjustment {
+  id              String   @id @default(cuid())
+  tenantId        String
+  inventoryId     String
+  adjustmentNumber String  @db.VarChar(120)
+  reasonCode      String   @db.VarChar(80)
+  quantityBefore  Int
+  quantityAfter   Int
+  varianceQty     Int
+  status          String   @default("pending") @db.VarChar(40)
+  approvedByUserId String?
+  approvedAt      DateTime?
+  notes           String?
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventory       Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  approvedBy      User?    @relation("StockAdjustmentApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, adjustmentNumber])
+  @@index([tenantId, inventoryId])
+}

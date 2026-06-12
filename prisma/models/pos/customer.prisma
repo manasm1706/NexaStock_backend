@@ -1,0 +1,32 @@
+model Customer {
+  id               String   @id @default(cuid())
+  tenantId         String
+  customerCode     String   @db.VarChar(120)
+  customerType     String   @default("B2C") @db.VarChar(20)
+  fullName         String   @db.VarChar(180)
+  phone            String?  @db.VarChar(32)
+  email            String?  @db.VarChar(255)
+  gstin            String?  @db.VarChar(40)
+  loyaltyNumber    String?  @db.VarChar(120)
+  creditLimit      Decimal? @db.Decimal(14, 2)
+  addressLine1     String?  @db.VarChar(255)
+  addressLine2     String?  @db.VarChar(255)
+  city             String?  @db.VarChar(120)
+  state            String?  @db.VarChar(120)
+  postalCode       String?  @db.VarChar(40)
+  country          String?  @db.VarChar(120)
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  deletedAt        DateTime?
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  carts            Cart[]
+  sales            Sale[]
+  returns          Return[]
+  invoices         Invoice[]
+
+  @@unique([tenantId, customerCode])
+  @@index([tenantId, phone])
+  @@index([tenantId, email])
+}

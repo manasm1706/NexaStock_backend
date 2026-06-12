@@ -1,0 +1,23 @@
+model ReportDefinition {
+  id              String   @id @default(cuid())
+  tenantId        String
+  code            String   @db.VarChar(120)
+  name            String   @db.VarChar(180)
+  module          String   @db.VarChar(120)
+  description     String?
+  queryConfig     Json?
+  columns         Json?
+  defaultFilters  Json?
+  isSystem        Boolean  @default(false)
+  createdByUserId String?
+  version         Int      @default(1)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy       User?    @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+  savedReports    SavedReport[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, module])
+}

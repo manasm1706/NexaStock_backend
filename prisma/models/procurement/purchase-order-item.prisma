@@ -1,0 +1,46 @@
+model PurchaseOrderItem {
+  id                    String   @id @default(cuid())
+  tenantId              String
+  purchaseOrderId       String
+  productId             String
+  variantId             String?
+  taxCategoryId         String?
+  lineNumber            Int
+  itemName              String   @db.VarChar(255)
+
+  quantityOrdered       Int
+  quantityReceived      Int      @default(0)
+  quantityInvoiced      Int      @default(0)
+
+  unitCost              Decimal  @db.Decimal(14, 4)
+  discountAmount        Decimal  @default(0) @db.Decimal(14, 2)
+  taxRate               Decimal  @default(0) @db.Decimal(7, 4)
+
+  discrepancyQty        Int      @default(0)
+  discrepancyReason     String?
+
+  metadata              Json?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  tenant                Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  purchaseOrder         PurchaseOrder     @relation(fields: [purchaseOrderId], references: [id], onDelete: Cascade)
+
+  product               Product           @relation(fields: [productId], references: [id], onDelete: Restrict)
+
+  variant               ProductVariant?   @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  taxCategory           TaxCategory?      @relation(fields: [taxCategoryId], references: [id], onDelete: SetNull)
+
+  supplierInvoiceItems  SupplierInvoiceItem[]
+
+  goodsReceiptNoteItems GoodsReceiptNoteItem[]
+
+  @@unique([purchaseOrderId, lineNumber])
+
+  @@index([tenantId, productId])
+
+  @@index([tenantId, purchaseOrderId])
+}

@@ -1,0 +1,31 @@
+model TransferRequest {
+  id                String              @id @default(cuid())
+  tenantId          String
+  requestNumber     String              @db.VarChar(120)
+  fromLocationId    String
+  toLocationId      String
+  requestedByUserId String
+  approvedByUserId  String?
+  priority          String              @default("normal") @db.VarChar(40)
+  status            InventoryTransferStatus @default(REQUESTED)
+  reason            String?
+  requestedAt       DateTime            @default(now())
+  approvedAt        DateTime?
+  requiredBy        DateTime?
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deletedAt         DateTime?
+
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  fromLocation      Location            @relation("RequestFromLocation", fields: [fromLocationId], references: [id], onDelete: Restrict)
+  toLocation        Location            @relation("RequestToLocation", fields: [toLocationId], references: [id], onDelete: Restrict)
+  requestedBy       User                @relation("TransferRequestRequestedBy", fields: [requestedByUserId], references: [id], onDelete: Restrict)
+  approvedBy        User?               @relation("TransferRequestApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  items             TransferRequestItem[]
+  transfer          InventoryTransfer? @relation("TransferRequestInventoryTransfer")
+  pickingTasks      PickingTask[]
+
+  @@unique([tenantId, requestNumber])
+  @@index([tenantId, status])
+}

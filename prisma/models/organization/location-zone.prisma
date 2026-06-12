@@ -1,0 +1,25 @@
+model LocationZone {
+  id            String     @id @default(cuid())
+  tenantId      String
+  locationId    String
+  code          String     @db.VarChar(80)
+  name          String     @db.VarChar(120)
+  zoneType      String     @db.VarChar(80)
+  status        ZoneStatus @default(ACTIVE)
+  temperatureRange String?  @db.VarChar(80)
+  metadata      Json?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+
+  pickingTasks PickingTask[] @relation("ZonePickingTasks")
+
+  tenant        Tenant     @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location      Location   @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  bins          StorageBin[]
+  stores        Store[]
+  warehouses    Warehouse[]
+  externalWarehouses ExternalWarehouse[]
+
+  @@unique([tenantId, locationId, code])
+  @@index([tenantId, locationId])
+}

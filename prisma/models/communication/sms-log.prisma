@@ -1,0 +1,18 @@
+model SMSLog {
+  id                String   @id @default(cuid())
+  tenantId          String
+  notificationId    String?
+  recipientPhone    String   @db.VarChar(32)
+  provider          String   @db.VarChar(80)
+  providerMessageId String?  @db.VarChar(120)
+  status            String   @default("queued") @db.VarChar(40)
+  payload           Json?
+  errorMessage      String?
+  sentAt            DateTime?
+  createdAt         DateTime @default(now())
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  notification      Notification? @relation(fields: [notificationId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, providerMessageId])
+}

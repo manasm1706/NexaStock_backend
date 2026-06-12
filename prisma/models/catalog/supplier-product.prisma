@@ -1,0 +1,26 @@
+model SupplierProduct {
+  id                  String   @id @default(cuid())
+  tenantId            String
+  supplierId          String
+  productId           String?
+  externalSku         String   @db.VarChar(120)
+  supplierName        String   @db.VarChar(255)
+  purchasePrice       Decimal  @db.Decimal(14, 4)
+  mrp                 Decimal? @db.Decimal(14, 4)
+  currencyCode        String   @default("USD") @db.VarChar(8)
+  leadTimeDays        Int      @default(0)
+  minimumOrderQty     Int      @default(1)
+  packSize            Int      @default(1)
+  isActive            Boolean  @default(true)
+  metadata            Json?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  tenant              Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier            Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+  product             Product? @relation(fields: [productId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, supplierId, externalSku])
+  @@index([tenantId, supplierId])
+  @@index([tenantId, productId])
+}

@@ -1,0 +1,18 @@
+model NotificationPreference {
+  id                String   @id @default(cuid())
+  tenantId          String
+  userId            String   @unique
+  emailEnabled      Boolean  @default(true)
+  smsEnabled        Boolean  @default(false)
+  whatsappEnabled   Boolean  @default(false)
+  inAppEnabled      Boolean  @default(true)
+  quietHoursStart   String?  @db.VarChar(16)
+  quietHoursEnd     String?  @db.VarChar(16)
+  digestFrequency   String   @default("instant") @db.VarChar(40)
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+}

@@ -1,0 +1,40 @@
+model Sale {
+  id               String      @id @default(cuid())
+  tenantId         String
+  posSessionId     String
+  locationId       String
+  customerId       String?
+  sourceCartId     String?
+  saleNumber       String      @db.VarChar(120)
+  status           SaleStatus  @default(OPEN)
+  saleDate         DateTime    @default(now())
+  subtotal         Decimal     @db.Decimal(14, 2)
+  discountTotal    Decimal     @default(0) @db.Decimal(14, 2)
+  taxTotal         Decimal     @default(0) @db.Decimal(14, 2)
+  grandTotal       Decimal     @db.Decimal(14, 2)
+  roundingAdjustment Decimal   @default(0) @db.Decimal(14, 2)
+  syncStatus       String      @default("pending") @db.VarChar(40)
+  metadata         Json?
+  createdAt        DateTime    @default(now())
+  updatedAt        DateTime    @updatedAt
+  deletedAt        DateTime?
+
+  createdByUserId  String?
+
+  createdBy        User?       @relation(fields: [createdByUserId], references: [id], onDelete: SetNull)
+
+  tenant           Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  session          POSSession  @relation(fields: [posSessionId], references: [id], onDelete: Restrict)
+  location         Location    @relation("LocationSales", fields: [locationId], references: [id])
+  customer         Customer?   @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  sourceCart       Cart?       @relation(fields: [sourceCartId], references: [id], onDelete: SetNull)
+  items            SaleItem[]
+  invoice          Invoice?
+  payments         Payment[]
+  refunds          Refund[]
+  returns          Return[]
+
+  @@unique([tenantId, saleNumber])
+  @@index([tenantId, locationId, saleDate])
+  @@index([tenantId, status])
+}

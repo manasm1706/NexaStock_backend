@@ -1,0 +1,26 @@
+model Notification {
+  id                String              @id @default(cuid())
+  tenantId          String
+  recipientUserId   String?
+  channel           NotificationChannel
+  status            NotificationStatus  @default(QUEUED)
+  title             String              @db.VarChar(255)
+  body              String
+  templateKey       String?             @db.VarChar(120)
+  payload           Json?
+  sentAt            DateTime?
+  deliveredAt       DateTime?
+  readAt            DateTime?
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  emailLogs         EmailLog[]
+  smsLogs           SMSLog[]
+
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  recipientUser     User?               @relation(fields: [recipientUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, recipientUserId])
+  @@index([tenantId, status])
+}

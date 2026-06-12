@@ -1,0 +1,24 @@
+model FileAttachment {
+  id                String   @id @default(cuid())
+  tenantId          String
+  ownerType         String   @db.VarChar(120)
+  ownerId           String   @db.VarChar(120)
+  fileName          String   @db.VarChar(255)
+  mimeType          String   @db.VarChar(120)
+  storageProvider   String   @db.VarChar(80)
+  storageKey        String   @db.VarChar(255)
+  checksum          String?  @db.VarChar(255)
+  sizeBytes         Int?
+  uploadedByUserId  String?
+  uploadedAt        DateTime @default(now())
+  metadata          Json?
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  tenant            Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  uploadedBy        User?    @relation(fields: [uploadedByUserId], references: [id], onDelete: SetNull)
+  complianceDocuments ComplianceDocument[]
+
+  @@index([tenantId, ownerType, ownerId])
+  @@index([tenantId, uploadedAt])
+}

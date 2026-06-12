@@ -1,0 +1,19 @@
+model MFAConfiguration {
+  id                 String    @id @default(cuid())
+  tenantId           String
+  userId             String    @unique
+  method             MfaMethod
+  isEnabled          Boolean   @default(false)
+  secretEncrypted    String?   @db.VarChar(255)
+  recoveryCodesHash  Json?
+  phoneNumber        String?   @db.VarChar(32)
+  backupEmail        String?   @db.VarChar(255)
+  lastVerifiedAt     DateTime?
+  createdAt          DateTime  @default(now())
+  updatedAt          DateTime  @updatedAt
+
+  tenant             Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user               User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, isEnabled])
+}

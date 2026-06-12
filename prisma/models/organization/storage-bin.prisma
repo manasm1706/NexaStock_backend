@@ -1,0 +1,40 @@
+model StorageBin {
+  id            String    @id @default(cuid())
+  tenantId      String
+  locationId    String
+  zoneId        String
+  parentBinId   String?
+  code          String    @db.VarChar(120)
+  aisle         String?   @db.VarChar(40)
+  rack          String?   @db.VarChar(40)
+  shelf         String?   @db.VarChar(40)
+  bin           String?   @db.VarChar(40)
+  status        BinStatus @default(ACTIVE)
+  capacityUnits Int       @default(0)
+  occupiedUnits Int       @default(0)
+  metadata      Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  inventorySerials     InventorySerial[]
+
+  goodsReceiptItems    GoodsReceiptNoteItem[]
+
+  dispatchChallanItems DispatchChallanItem[]
+
+  pickingTaskItems     PickingTaskItem[]
+
+  pickingTasks         PickingTask[]
+
+  inventoryMovements   InventoryMovement[]
+
+  tenant        Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  location      Location @relation("LocationStorageBins", fields: [locationId], references: [id], onDelete: Cascade)
+  zone          LocationZone @relation(fields: [zoneId], references: [id], onDelete: Cascade)
+  parentBin     StorageBin? @relation("BinHierarchy", fields: [parentBinId], references: [id], onDelete: SetNull)
+  childBins     StorageBin[] @relation("BinHierarchy")
+
+  @@unique([tenantId, zoneId, code])
+  @@index([tenantId, locationId])
+  @@index([tenantId, zoneId])
+}

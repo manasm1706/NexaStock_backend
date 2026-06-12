@@ -1,0 +1,20 @@
+model DashboardSnapshot {
+  id              String   @id @default(cuid())
+  tenantId        String
+  snapshotDate    DateTime
+  snapshotType    String   @db.VarChar(80)
+  revenue         Decimal  @default(0) @db.Decimal(18, 2)
+  grossMargin     Decimal  @default(0) @db.Decimal(18, 2)
+  inventoryValue  Decimal  @default(0) @db.Decimal(18, 2)
+  salesCount      Int      @default(0)
+  ordersCount     Int      @default(0)
+  alertsCount     Int      @default(0)
+  metrics         Json?
+  dimensions      Json?
+  createdAt       DateTime @default(now())
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, snapshotDate, snapshotType])
+  @@index([tenantId, snapshotDate])
+}

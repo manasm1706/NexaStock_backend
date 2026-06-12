@@ -1,0 +1,20 @@
+model SavedReport {
+  id               String   @id @default(cuid())
+  tenantId         String
+  reportDefinitionId String
+  userId           String
+  name             String   @db.VarChar(180)
+  scheduleCron     String?  @db.VarChar(120)
+  filters          Json?
+  shareScope       String   @default("private") @db.VarChar(40)
+  lastRunAt        DateTime?
+  metadata         Json?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  tenant           Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  reportDefinition ReportDefinition @relation(fields: [reportDefinitionId], references: [id], onDelete: Cascade)
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+}

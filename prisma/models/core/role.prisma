@@ -1,0 +1,22 @@
+
+model Role {
+  id          String      @id @default(cuid())
+  tenantId    String
+  roleKey     RoleKey?
+  code        String      @db.VarChar(120)
+  name        String      @db.VarChar(160)
+  description String?
+  isSystem    Boolean     @default(false)
+  isActive    Boolean     @default(true)
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  deletedAt   DateTime?
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  users       User[]
+  rolePermissions RolePermission[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, roleKey])
+}

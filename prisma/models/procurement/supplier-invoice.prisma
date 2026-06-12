@@ -1,0 +1,34 @@
+model SupplierInvoice {
+  id                 String              @id @default(cuid())
+  tenantId           String
+  supplierId         String
+  purchaseOrderId    String?
+  invoiceNumber      String              @db.VarChar(120)
+  supplierReference  String?             @db.VarChar(120)
+  status             SupplierInvoiceStatus @default(RECEIVED)
+  invoiceDate        DateTime
+  dueDate            DateTime?
+  subtotal           Decimal             @db.Decimal(14, 2)
+  taxTotal           Decimal             @db.Decimal(14, 2)
+  discountTotal      Decimal             @db.Decimal(14, 2)
+  grandTotal         Decimal             @db.Decimal(14, 2)
+  paidTotal          Decimal             @default(0) @db.Decimal(14, 2)
+  balanceDue         Decimal             @default(0) @db.Decimal(14, 2)
+  matchingStatus     String              @default("pending") @db.VarChar(60)
+  discrepancyNotes   String?
+  metadata           Json?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  deletedAt          DateTime?
+
+  tenant             Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier           Supplier            @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  purchaseOrder      PurchaseOrder?      @relation(fields: [purchaseOrderId], references: [id], onDelete: SetNull)
+  items              SupplierInvoiceItem[]
+  goodsReceiptNotes  GoodsReceiptNote[]
+
+  @@unique([tenantId, invoiceNumber])
+  @@index([tenantId, supplierId])
+  @@index([tenantId, status])
+  @@index([tenantId, invoiceDate])
+}

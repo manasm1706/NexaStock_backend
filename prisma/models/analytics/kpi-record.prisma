@@ -1,0 +1,18 @@
+model KPIRecord {
+  id              String    @id @default(cuid())
+  tenantId        String
+  kpiKey          String    @db.VarChar(120)
+  period          KPIPeriod @default(DAILY)
+  periodStart     DateTime
+  periodEnd       DateTime
+  numericValue    Decimal   @db.Decimal(18, 4)
+  targetValue     Decimal?  @db.Decimal(18, 4)
+  varianceValue   Decimal?  @db.Decimal(18, 4)
+  dimensions      Json?
+  source          String?   @db.VarChar(80)
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, kpiKey, periodStart])
+}

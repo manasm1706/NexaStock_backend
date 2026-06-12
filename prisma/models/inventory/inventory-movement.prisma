@@ -1,0 +1,43 @@
+model InventoryMovement {
+  id              String              @id @default(cuid())
+  tenantId        String
+  inventoryId     String?
+  batchId         String?
+  serialId        String?
+  locationId      String
+  productId       String
+  variantId       String?
+  movementNumber  String              @db.VarChar(120)
+  movementType    InventoryMovementType
+  quantity        Int
+  unitCost        Decimal?            @db.Decimal(14, 4)
+  sourceType      String?             @db.VarChar(80)
+  sourceId        String?             @db.VarChar(120)
+  referenceType   String?             @db.VarChar(80)
+  referenceId     String?             @db.VarChar(120)
+  reasonCode      String?             @db.VarChar(80)
+  notes           String?
+  occurredAt      DateTime            @default(now())
+  isImmutable     Boolean             @default(true)
+  metadata        Json?
+  createdAt       DateTime            @default(now())
+
+  saleItems       SaleItem[]
+  binId String?
+
+  bin StorageBin? @relation(fields: [binId], references: [id], onDelete: SetNull)
+
+  tenant          Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventory       Inventory?          @relation(fields: [inventoryId], references: [id], onDelete: SetNull)
+  batch           InventoryBatch?     @relation(fields: [batchId], references: [id], onDelete: SetNull)
+  serial          InventorySerial?    @relation(fields: [serialId], references: [id], onDelete: SetNull)
+  location        Location            @relation(fields: [locationId], references: [id], onDelete: Cascade)
+  product         Product             @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant         ProductVariant?     @relation(fields: [variantId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, movementNumber])
+  @@index([tenantId, locationId, occurredAt])
+  @@index([tenantId, productId, occurredAt])
+  @@index([tenantId, movementType, occurredAt])
+  @@index([tenantId, inventoryId])
+}

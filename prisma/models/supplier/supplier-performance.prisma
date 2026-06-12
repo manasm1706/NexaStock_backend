@@ -1,0 +1,18 @@
+model SupplierPerformanceMetric {
+  id           String   @id @default(cuid())
+  tenantId     String
+  supplierId   String
+  metricKey    String   @db.VarChar(120)
+  periodStart  DateTime
+  periodEnd    DateTime
+  value        Decimal  @db.Decimal(18, 4)
+  benchmarkValue Decimal? @db.Decimal(18, 4)
+  metadata     Json?
+  createdAt    DateTime @default(now())
+
+  tenant       Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier     Supplier @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, supplierId, metricKey])
+  @@index([tenantId, periodStart, periodEnd])
+}

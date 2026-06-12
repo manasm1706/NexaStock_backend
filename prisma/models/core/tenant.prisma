@@ -1,0 +1,228 @@
+model Tenant {
+  id                        String             @id @default(cuid())
+  name                      String             @db.VarChar(255)
+  legalName                 String             @db.VarChar(255)
+  slug                      String             @unique @db.VarChar(120)
+  status                    TenantStatus       @default(TRIAL)
+  onboardingStatus          String             @default("pending") @db.VarChar(60)
+  operationalModel          OperationalModel   @default(HYBRID)
+  industry                  String             @db.VarChar(120)
+
+  subdomain                 String?            @unique @db.VarChar(120)
+
+  primaryCurrency           String             @default("USD") @db.VarChar(8)
+  timezone                  String             @default("UTC") @db.VarChar(64)
+  locale                    String             @default("en-US") @db.VarChar(32)
+
+  branding                  Json?
+  metadata                  Json?
+
+  createdAt                 DateTime           @default(now())
+  updatedAt                 DateTime           @updatedAt
+  deletedAt                 DateTime?
+
+  subscriptions             Subscription[]
+  settings                  TenantSettings?
+  featureFlags              TenantFeatureFlag[]
+
+  users                     User[]
+  roles                     Role[]
+  permissions               Permission[]
+
+  locations                 Location[]
+  stores                    Store[]
+  warehouses                Warehouse[]
+  externalWarehouses        ExternalWarehouse[]
+  locationZones             LocationZone[]
+  storageBins               StorageBin[]
+
+  productCategories         ProductCategory[]
+  productSubCategories      ProductSubCategory[]
+  products                  Product[]
+  productVariants           ProductVariant[]
+  productBarcodes           ProductBarcode[]
+  productImages             ProductImage[]
+  productSuppliers          ProductSupplier[]
+
+  taxCategories             TaxCategory[]
+
+  suppliers                 Supplier[]
+  supplierContacts          SupplierContact[]
+  supplierAddresses         SupplierAddress[]
+  supplierProducts          SupplierProduct[]
+  supplierPerformanceMetrics SupplierPerformanceMetric[]
+
+  purchaseOrders            PurchaseOrder[]
+  purchaseOrderItems        PurchaseOrderItem[]
+
+  supplierInvoices          SupplierInvoice[]
+  supplierInvoiceItems      SupplierInvoiceItem[]
+
+  goodsReceiptNotes         GoodsReceiptNote[]
+  goodsReceiptNoteItems     GoodsReceiptNoteItem[]
+
+  inventories               Inventory[]
+  inventoryBatches          InventoryBatch[]
+  inventorySerials          InventorySerial[]
+  inventoryReservations     InventoryReservation[]
+  inventoryMovements        InventoryMovement[]
+  inventorySnapshots        InventorySnapshot[]
+  stockAdjustments          StockAdjustment[]
+
+  transferRequests          TransferRequest[]
+  transferRequestItems      TransferRequestItem[]
+
+  inventoryTransfers        InventoryTransfer[]
+  inventoryTransferItems    InventoryTransferItem[]
+
+  dispatchChallans          DispatchChallan[]
+  dispatchChallanItems      DispatchChallanItem[]
+
+  pickingTasks              PickingTask[]
+  pickingTaskItems          PickingTaskItem[]
+
+  posSessions               POSSession[]
+  carts                     Cart[]
+  cartItems                 CartItem[]
+
+  customers                 Customer[]
+
+  sales                     Sale[]
+  saleItems                 SaleItem[]
+
+  returns                   Return[]
+  returnItems               ReturnItem[]
+
+  invoices                  Invoice[]
+  payments                  Payment[]
+  refunds                   Refund[]
+
+  dashboardSnapshots        DashboardSnapshot[]
+
+  reportDefinitions         ReportDefinition[]
+  savedReports              SavedReport[]
+  kpiRecords                KPIRecord[]
+
+  forecastModels            ForecastModel[]
+  forecastRecords           ForecastRecord[]
+
+  recommendations           AIRecommendation[]
+  alertRules                AlertRule[]
+  alerts                    Alert[]
+  anomalies                 AnomalyRecord[]
+
+  notifications             Notification[]
+  notificationPreferences   NotificationPreference[]
+  emailLogs                 EmailLog[]
+  smsLogs                   SMSLog[]
+
+  auditLogs                 AuditLog[]
+  activityEvents            ActivityEvent[]
+
+  complianceDocuments       ComplianceDocument[]
+  attachments               FileAttachment[]
+
+  mfaConfigurations         MFAConfiguration[]
+  rolePermissions           RolePermission[]
+  userSessions              UserSession[]
+
+  @@index([slug])
+  @@index([status, operationalModel])
+  @@index([createdAt])
+}
+
+/// Global plan catalog. These rows are platform-level, not tenant-specific.
+model SubscriptionPlan {
+  id             String          @id @default(cuid())
+  code           String          @unique @db.VarChar(80)
+  name           String          @db.VarChar(120)
+  tier           PlanTier
+  billingCycle   BillingCycle
+  priceMonthly   Decimal         @db.Decimal(14, 2)
+  priceYearly    Decimal         @db.Decimal(14, 2)
+  limits         Json?
+  featureSet     Json?
+  isActive       Boolean         @default(true)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+
+  subscriptions  Subscription[]
+
+  @@index([tier, isActive])
+}
+
+model Subscription {
+  id                   String             @id @default(cuid())
+  tenantId             String
+  subscriptionPlanId   String
+  status               SubscriptionStatus @default(TRIALING)
+  billingCycle         BillingCycle       @default(MONTHLY)
+  seatsPurchased       Int                @default(1)
+  seatsUsed            Int                @default(0)
+  startedAt            DateTime           @default(now())
+  trialEndsAt          DateTime?
+  currentPeriodStart   DateTime?
+  currentPeriodEnd     DateTime?
+  renewsAt             DateTime?
+  canceledAt           DateTime?
+  cancelAtPeriodEnd    Boolean            @default(false)
+  externalCustomerId   String?            @db.VarChar(120)
+  externalSubscriptionId String?          @db.VarChar(120)
+  metadata             Json?
+  createdAt            DateTime           @default(now())
+  updatedAt            DateTime           @updatedAt
+  deletedAt            DateTime?
+
+  tenant               Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  plan                 SubscriptionPlan    @relation(fields: [subscriptionPlanId], references: [id], onDelete: Restrict)
+
+  @@index([tenantId, status])
+  @@index([tenantId, renewsAt])
+  @@index([subscriptionPlanId])
+}
+
+model TenantSettings {
+  id                        String           @id @default(cuid())
+  tenantId                  String           @unique
+  operationalModel          OperationalModel @default(HYBRID)
+  currencyCode              String           @default("USD") @db.VarChar(8)
+  timezone                  String           @default("UTC") @db.VarChar(64)
+  locale                    String           @default("en-US") @db.VarChar(32)
+  dateFormat                String           @default("YYYY-MM-DD") @db.VarChar(32)
+  numberFormat              String           @default("standard") @db.VarChar(32)
+  valuationMethod           String           @default("FIFO") @db.VarChar(32)
+  invoicePrefix             String           @default("INV") @db.VarChar(24)
+  poPrefix                  String           @default("PO") @db.VarChar(24)
+  grnPrefix                 String           @default("GRN") @db.VarChar(24)
+  dcPrefix                  String           @default("DC") @db.VarChar(24)
+  warehousePrefix           String           @default("WH") @db.VarChar(24)
+  storePrefix               String           @default("ST") @db.VarChar(24)
+  branding                  Json?
+  operationalPreferences    Json?
+  aiPreferences             Json?
+  securityPreferences       Json?
+  metadata                  Json?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+
+  tenant                    Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, operationalModel])
+}
+
+model TenantFeatureFlag {
+  id          String   @id @default(cuid())
+  tenantId    String
+  flagKey     String   @db.VarChar(120)
+  enabled     Boolean  @default(false)
+  value       Json?
+  source      String   @default("manual") @db.VarChar(40)
+  rollout     Int      @default(0)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, flagKey])
+  @@index([tenantId, enabled])
+}

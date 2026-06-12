@@ -1,0 +1,24 @@
+model AuditLog {
+  id              String    @id @default(cuid())
+  tenantId        String
+  actorUserId     String?
+  requestId       String?   @db.VarChar(120)
+  entityType      String    @db.VarChar(120)
+  entityId        String?   @db.VarChar(120)
+  action          String    @db.VarChar(120)
+  module          String    @db.VarChar(120)
+  summary         String    @db.VarChar(500)
+  severity        AlertSeverity @default(INFO)
+  beforeData      Json?
+  afterData       Json?
+  ipAddress       String?   @db.VarChar(64)
+  userAgent       String?   @db.VarChar(500)
+  createdAt       DateTime  @default(now())
+
+  tenant          Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor           User?     @relation("AuditActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, module, action])
+}

@@ -1,0 +1,33 @@
+model InventoryBatch {
+  id              String   @id @default(cuid())
+  tenantId        String
+  inventoryId     String
+  productId       String
+  variantId       String?
+  batchNumber     String   @db.VarChar(120)
+  serialBatchCode String?  @db.VarChar(120)
+  manufacturedAt  DateTime?
+  expiresAt       DateTime?
+  receivedAt      DateTime?
+  qtyOnHand       Int      @default(0)
+  qtyReserved     Int      @default(0)
+  unitCost        Decimal? @db.Decimal(14, 4)
+  status          String   @default("active") @db.VarChar(40)
+  metadata        Json?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  pickingTaskItems PickingTaskItem[]
+
+  tenant          Tenant   @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventory       Inventory @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+  product         Product  @relation(fields: [productId], references: [id], onDelete: Restrict)
+  variant         ProductVariant? @relation(fields: [variantId], references: [id], onDelete: SetNull)
+  serials         InventorySerial[]
+  movements       InventoryMovement[]
+  transferItems   InventoryTransferItem[]
+
+  @@unique([tenantId, inventoryId, batchNumber])
+  @@index([tenantId, expiresAt])
+  @@index([tenantId, inventoryId])
+}

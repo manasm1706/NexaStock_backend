@@ -1,0 +1,20 @@
+model SupplierContact {
+  id          String      @id @default(cuid())
+  tenantId    String
+  supplierId  String
+  contactType ContactType  @default(PRIMARY)
+  name        String      @db.VarChar(180)
+  designation String?     @db.VarChar(120)
+  email       String?     @db.VarChar(255)
+  phone       String?     @db.VarChar(32)
+  isPrimary   Boolean     @default(false)
+  metadata    Json?
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  tenant      Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier    Supplier    @relation(fields: [supplierId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, supplierId])
+  @@index([tenantId, email])
+}

@@ -1,0 +1,25 @@
+model Payment {
+  id               String         @id @default(cuid())
+  tenantId         String
+  saleId           String
+  paymentNumber    String         @db.VarChar(120)
+  method           PaymentMethod
+  status           PaymentStatus  @default(PENDING)
+  amount           Decimal        @db.Decimal(14, 2)
+  currencyCode     String         @default("USD") @db.VarChar(8)
+  referenceNumber  String?        @db.VarChar(120)
+  gatewayResponse  Json?
+  splitGroupId     String?        @db.VarChar(120)
+  paidAt           DateTime?
+  metadata         Json?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  tenant           Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale             Sale           @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  refunds          Refund[]
+
+  @@unique([tenantId, paymentNumber])
+  @@index([tenantId, saleId])
+  @@index([tenantId, status])
+}

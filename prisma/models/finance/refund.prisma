@@ -1,0 +1,23 @@
+model Refund {
+  id               String        @id @default(cuid())
+  tenantId         String
+  saleId           String
+  paymentId        String?
+  refundNumber     String        @db.VarChar(120)
+  status           RefundStatus  @default(REQUESTED)
+  method           PaymentMethod
+  amount           Decimal       @db.Decimal(14, 2)
+  reason           String?
+  gatewayResponse  Json?
+  refundedAt       DateTime?
+  metadata         Json?
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  tenant           Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale             Sale          @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  payment          Payment?      @relation(fields: [paymentId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, refundNumber])
+  @@index([tenantId, saleId])
+}

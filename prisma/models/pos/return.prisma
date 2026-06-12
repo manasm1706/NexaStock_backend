@@ -1,0 +1,26 @@
+model Return {
+  id               String       @id @default(cuid())
+  tenantId         String
+  saleId           String
+  invoiceId        String?
+  returnNumber     String       @db.VarChar(120)
+  status           ReturnStatus @default(REQUESTED)
+  reason           String?
+  restockStatus    String       @default("pending") @db.VarChar(40)
+  refundAmount     Decimal      @default(0) @db.Decimal(14, 2)
+  receivedAt       DateTime?
+  metadata         Json?
+  createdAt        DateTime     @default(now())
+  updatedAt        DateTime     @updatedAt
+
+  customer         Customer? @relation(fields: [customerId], references: [id], onDelete: SetNull)
+  customerId       String?
+
+  tenant           Tenant       @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  sale             Sale         @relation(fields: [saleId], references: [id], onDelete: Cascade)
+  invoice          Invoice?     @relation(fields: [invoiceId], references: [id], onDelete: SetNull)
+  items            ReturnItem[]
+
+  @@unique([tenantId, returnNumber])
+  @@index([tenantId, saleId])
+}

@@ -1,0 +1,410 @@
+
+enum OperationalModel {
+  CENTRALIZED_WAREHOUSE
+  DIRECT_STORE
+  EXTERNAL_WAREHOUSE
+  HYBRID
+}
+
+enum TenantStatus {
+  TRIAL
+  ACTIVE
+  PAST_DUE
+  SUSPENDED
+  CANCELLED
+}
+
+enum SubscriptionStatus {
+  TRIALING
+  ACTIVE
+  PAST_DUE
+  CANCELED
+  EXPIRED
+}
+
+enum BillingCycle {
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum PlanTier {
+  STARTER
+  GROWTH
+  PROFESSIONAL
+  ENTERPRISE
+}
+
+enum RoleKey {
+  SUPER_ADMIN
+  BUSINESS_OWNER
+  OPS_MANAGER
+  WAREHOUSE_MANAGER
+  STORE_MANAGER
+  CASHIER
+  SUPPLIER_PORTAL_USER
+}
+
+enum PermissionKey {
+  TENANT_ADMIN
+  USER_MANAGEMENT
+  PRODUCT_MANAGEMENT
+  SUPPLIER_MANAGEMENT
+  PROCUREMENT_MANAGEMENT
+  INVENTORY_READ
+  INVENTORY_WRITE
+  WAREHOUSE_MANAGEMENT
+  POS_SALES
+  ANALYTICS_READ
+  AI_READ
+  AUDIT_READ
+  SETTINGS_MANAGE
+}
+
+enum UserScope {
+  INTERNAL
+  EXTERNAL
+}
+
+enum UserStatus {
+  ACTIVE
+  INVITED
+  DISABLED
+  LOCKED
+}
+
+enum MfaMethod {
+  TOTP
+  SMS
+  EMAIL
+  WEBAUTHN
+  BACKUP_CODES
+}
+
+enum LocationType {
+  STORE
+  WAREHOUSE
+  EXTERNAL_WAREHOUSE
+  TRANSIT
+  VIRTUAL
+}
+
+enum LocationStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+  CLOSED
+}
+
+enum WarehouseType {
+  CENTRAL
+  REGIONAL
+  SATELLITE
+  COLD_STORAGE
+  CROSS_DOCK
+  EXTERNAL_3PL
+}
+
+enum ZoneStatus {
+  ACTIVE
+  INACTIVE
+  MAINTENANCE
+}
+
+enum BinStatus {
+  ACTIVE
+  BLOCKED
+  FULL
+  EMPTY
+  MAINTENANCE
+}
+
+enum ProductTrackingMode {
+  NONE
+  BATCH
+  SERIAL
+  BATCH_AND_SERIAL
+}
+
+enum ProductStatus {
+  ACTIVE
+  INACTIVE
+  ARCHIVED
+}
+
+enum BarcodeSymbology {
+  EAN8
+  EAN13
+  UPCA
+  UPCE
+  CODE128
+  CODE39
+  QR
+  CUSTOM
+}
+
+enum SupplierStatus {
+  ACTIVE
+  PAUSED
+  BLOCKED
+}
+
+enum ContactType {
+  PRIMARY
+  BILLING
+  SALES
+  OPERATIONS
+  SUPPORT
+}
+
+enum AddressType {
+  REGISTERED
+  BILLING
+  SHIPPING
+  WAREHOUSE
+  OTHER
+}
+
+enum TaxJurisdiction {
+  GST
+  VAT
+  HST
+  SALES_TAX
+  EXCISE
+}
+
+enum PurchaseOrderStatus {
+  DRAFT
+  PENDING_APPROVAL
+  APPROVED
+  SENT
+  ACKNOWLEDGED
+  PARTIALLY_RECEIVED
+  FULLY_RECEIVED
+  CLOSED
+  CANCELLED
+}
+
+enum SupplierInvoiceStatus {
+  RECEIVED
+  MATCHED
+  DISCREPANCY
+  APPROVED
+  POSTED
+  PAID
+  VOIDED
+}
+
+enum GoodsReceiptNoteStatus {
+  DRAFT
+  PARTIAL
+  CONFIRMED
+  DISCREPANCY
+  REJECTED
+  CLOSED
+}
+
+enum InventoryMovementType {
+  INWARD
+  OUTWARD
+  SALE
+  RETURN
+  ADJUSTMENT
+  TRANSFER
+  WRITEOFF
+  DISPATCH
+  GRN
+}
+
+enum InventoryReservationStatus {
+  ACTIVE
+  RELEASED
+  CONSUMED
+  EXPIRED
+  CANCELLED
+}
+
+enum InventoryTransferStatus {
+  DRAFT
+  REQUESTED
+  APPROVED
+  PICKING
+  DISPATCHED
+  IN_TRANSIT
+  PARTIALLY_RECEIVED
+  RECEIVED
+  CANCELLED
+}
+
+enum DispatchChallanStatus {
+  PREPARED
+  IN_TRANSIT
+  DELIVERED
+  PARTIALLY_DELIVERED
+  EXCEPTION
+  CANCELLED
+}
+
+enum PickingTaskStatus {
+  PENDING
+  ASSIGNED
+  PICKING
+  STAGED
+  COMPLETED
+  CANCELLED
+}
+
+enum POSSessionStatus {
+  OPEN
+  PAUSED
+  CLOSED
+  SYNC_PENDING
+}
+
+enum CartStatus {
+  ACTIVE
+  CHECKED_OUT
+  ABANDONED
+  EXPIRED
+}
+
+enum SaleStatus {
+  OPEN
+  COMPLETED
+  VOIDED
+  RETURNED
+  PARTIALLY_RETURNED
+}
+
+enum InvoiceStatus {
+  DRAFT
+  ISSUED
+  PARTIALLY_PAID
+  PAID
+  VOIDED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH
+  CARD
+  UPI
+  WALLET
+  BANK_TRANSFER
+  CREDIT
+  SPLIT
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  CAPTURED
+  FAILED
+  REFUNDED
+  PARTIAL_REFUND
+  VOIDED
+}
+
+enum RefundStatus {
+  REQUESTED
+  APPROVED
+  PROCESSED
+  REJECTED
+  VOIDED
+}
+
+enum ReturnStatus {
+  REQUESTED
+  RECEIVED
+  APPROVED
+  REJECTED
+  RESTOCKED
+  REFUNDED
+  CLOSED
+}
+
+enum AlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum AlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+  DISMISSED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  WHATSAPP
+}
+
+enum NotificationStatus {
+  QUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum ComplianceDocumentType {
+  GST_REGISTRATION
+  DRUG_LICENSE
+  FSSAI_LICENSE
+  FIRE_SAFETY
+  BUSINESS_LICENSE
+  TAX_CERTIFICATE
+  INSURANCE
+  OTHER
+}
+
+enum ComplianceStatus {
+  ACTIVE
+  EXPIRING_SOON
+  EXPIRED
+  PENDING_REVIEW
+}
+
+enum KPIPeriod {
+  HOURLY
+  DAILY
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
+enum ForecastModelStatus {
+  DRAFT
+  TRAINING
+  ACTIVE
+  RETIRED
+  FAILED
+}
+
+enum RecommendationStatus {
+  OPEN
+  IN_PROGRESS
+  APPLIED
+  DISMISSED
+  EXPIRED
+}
+
+enum AnomalyStatus {
+  OPEN
+  INVESTIGATING
+  FALSE_POSITIVE
+  RESOLVED
+}
+
+enum ActivitySource {
+  UI
+  API
+  SYSTEM
+  WEBHOOK
+  IMPORT
+}

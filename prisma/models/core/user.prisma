@@ -1,0 +1,86 @@
+model User {
+  id                        String      @id @default(cuid())
+
+  tenantId                  String
+  roleId                    String
+  supplierId                String?
+
+  userScope                 UserScope   @default(INTERNAL)
+
+  email                     String      @db.VarChar(255)
+  phone                     String?     @db.VarChar(32)
+  username                  String?     @db.VarChar(120)
+
+  fullName                  String      @db.VarChar(180)
+
+  passwordHash              String      @db.VarChar(255)
+
+  status                    UserStatus  @default(INVITED)
+
+  lastLoginAt               DateTime?
+
+  emailVerifiedAt           DateTime?
+  phoneVerifiedAt           DateTime?
+
+  avatarUrl                 String?
+
+  metadata                  Json?
+
+  createdAt                 DateTime    @default(now())
+  updatedAt                 DateTime    @updatedAt
+  deletedAt                 DateTime?
+
+  tenant                    Tenant      @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  role                      Role        @relation(fields: [roleId], references: [id], onDelete: Restrict)
+
+  supplier                  Supplier?   @relation(fields: [supplierId], references: [id], onDelete: SetNull)
+
+  sessions                  UserSession[]
+
+  mfaConfiguration          MFAConfiguration?
+
+  createdAuditLogs          AuditLog[] @relation("AuditActor")
+
+  activityEvents            ActivityEvent[] @relation("ActivityActor")
+
+  requestedTransferRequests TransferRequest[] @relation("TransferRequestRequestedBy")
+
+  approvedTransferRequests  TransferRequest[] @relation("TransferRequestApprovedBy")
+
+  approvedPurchaseOrders    PurchaseOrder[] @relation("PurchaseOrderApprovedBy")
+
+  verifiedGoodsReceiptNotes GoodsReceiptNote[] @relation("GoodsReceiptNoteVerifiedBy")
+
+  approvedStockAdjustments  StockAdjustment[] @relation("StockAdjustmentApprovedBy")
+
+  notificationPreferences   NotificationPreference?
+
+  notifications             Notification[]
+
+  managedStores             Store[]
+
+  openedPosSessions         POSSession[]
+
+  assignedPickingTasks      PickingTask[]
+
+  createdAlertRules         AlertRule[]
+
+  createdReports            ReportDefinition[]
+
+  savedReports              SavedReport[]
+
+  uploadedFiles             FileAttachment[]
+
+  createdSales              Sale[]
+
+  @@unique([tenantId, email])
+
+  @@unique([tenantId, username])
+
+  @@index([tenantId, roleId])
+
+  @@index([tenantId, status])
+
+  @@index([tenantId, supplierId])
+}

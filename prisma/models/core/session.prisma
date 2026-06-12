@@ -1,0 +1,24 @@
+model UserSession {
+  id               String    @id @default(cuid())
+  tenantId         String
+  userId           String
+  sessionTokenHash String    @db.VarChar(255)
+  refreshTokenHash String?   @db.VarChar(255)
+  deviceId         String?   @db.VarChar(120)
+  deviceName       String?   @db.VarChar(120)
+  ipAddress        String?   @db.VarChar(64)
+  userAgent        String?   @db.VarChar(500)
+  isActive         Boolean   @default(true)
+  lastSeenAt       DateTime?
+  expiresAt        DateTime
+  revokedAt        DateTime?
+  metadata         Json?
+  createdAt        DateTime  @default(now())
+  updatedAt        DateTime  @updatedAt
+
+  tenant           Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+  @@index([tenantId, expiresAt])
+}

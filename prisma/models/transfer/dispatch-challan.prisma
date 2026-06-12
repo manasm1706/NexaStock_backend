@@ -1,0 +1,35 @@
+model DispatchChallan {
+  id                String              @id @default(cuid())
+  tenantId          String
+  challanNumber     String              @db.VarChar(120)
+  inventoryTransferId String? @unique
+  originLocationId  String
+  destinationLocationId String
+  status            DispatchChallanStatus @default(PREPARED)
+  transportMode     String?             @db.VarChar(80)
+  transporterName   String?             @db.VarChar(180)
+  vehicleNumber     String?             @db.VarChar(80)
+  driverName        String?             @db.VarChar(180)
+  driverPhone       String?             @db.VarChar(32)
+  lrNumber          String?             @db.VarChar(120)
+  dispatchedAt      DateTime?
+  deliveredAt       DateTime?
+  metadata          Json?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deletedAt         DateTime?
+
+  pickingTasks      PickingTask[]
+
+  tenant            Tenant              @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  transfer          InventoryTransfer?   @relation("InventoryTransferDispatchChallan", fields: [inventoryTransferId], references: [id], onDelete: SetNull)
+  originLocation    Location            @relation("DCOriginLocation", fields: [originLocationId], references: [id], onDelete: Restrict)
+  destinationLocation Location          @relation("DCDestinationLocation", fields: [destinationLocationId], references: [id], onDelete: Restrict)
+  items             DispatchChallanItem[]
+  grns              GoodsReceiptNote[]
+
+  @@unique([tenantId, challanNumber])
+  @@index([tenantId, originLocationId])
+  @@index([tenantId, destinationLocationId])
+  @@index([tenantId, status])
+}

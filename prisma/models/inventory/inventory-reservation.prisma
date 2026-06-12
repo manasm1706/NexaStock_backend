@@ -1,0 +1,23 @@
+model InventoryReservation {
+  id              String                  @id @default(cuid())
+  tenantId        String
+  inventoryId     String
+  sourceType      String                  @db.VarChar(80)
+  sourceId        String                  @db.VarChar(120)
+  reservedQty     Int
+  releasedQty     Int                     @default(0)
+  status          InventoryReservationStatus @default(ACTIVE)
+  expiresAt       DateTime?
+  notes           String?
+  metadata        Json?
+  createdAt       DateTime                @default(now())
+  updatedAt       DateTime                @updatedAt
+
+  tenant          Tenant                  @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  inventory       Inventory               @relation(fields: [inventoryId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, inventoryId])
+  @@index([tenantId, status])
+  @@index([tenantId, expiresAt])
+  @@unique([tenantId, sourceType, sourceId])
+}

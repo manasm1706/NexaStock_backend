@@ -1,0 +1,22 @@
+model ComplianceDocument {
+  id                String               @id @default(cuid())
+  tenantId          String
+  documentType      ComplianceDocumentType
+  documentNumber    String               @db.VarChar(120)
+  issuingAuthority  String?              @db.VarChar(180)
+  status            ComplianceStatus     @default(ACTIVE)
+  issuedAt          DateTime?
+  expiresAt         DateTime?
+  relatedEntityType String?              @db.VarChar(120)
+  relatedEntityId   String?              @db.VarChar(120)
+  fileAttachmentId  String?
+  metadata          Json?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  tenant            Tenant               @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  attachment        FileAttachment?      @relation(fields: [fileAttachmentId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, documentType])
+  @@index([tenantId, expiresAt])
+}

@@ -1,0 +1,23 @@
+model TaxCategory {
+  id                String         @id @default(cuid())
+  tenantId          String
+  code              String         @db.VarChar(80)
+  name              String         @db.VarChar(160)
+  jurisdiction      TaxJurisdiction @default(GST)
+  rate              Decimal        @db.Decimal(7, 4)
+  isInclusive       Boolean        @default(false)
+  breakdown         Json?
+  effectiveFrom     DateTime?
+  effectiveTo       DateTime?
+  metadata          Json?
+  createdAt         DateTime       @default(now())
+  updatedAt         DateTime       @updatedAt
+
+  tenant            Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  products          Product[]
+  suppliers         Supplier[]
+  purchaseOrderItems PurchaseOrderItem[]
+
+  @@unique([tenantId, code])
+  @@index([tenantId, jurisdiction])
+}

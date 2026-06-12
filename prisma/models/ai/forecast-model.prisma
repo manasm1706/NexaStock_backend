@@ -1,0 +1,27 @@
+model ForecastModel {
+  id                String             @id @default(cuid())
+  tenantId          String
+  modelKey          String             @db.VarChar(120)
+  name              String             @db.VarChar(180)
+  modelType         String             @db.VarChar(120)
+  version           String             @db.VarChar(60)
+  status            ForecastModelStatus @default(DRAFT)
+  trainedAt         DateTime?
+  trainingWindowStart DateTime?
+  trainingWindowEnd DateTime?
+  features          Json?
+  metrics           Json?
+  artifactUri       String?            @db.VarChar(500)
+  isActive          Boolean            @default(false)
+  metadata          Json?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  tenant            Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  forecasts         ForecastRecord[]
+  recommendations   AIRecommendation[]
+  anomalies         AnomalyRecord[]
+
+  @@unique([tenantId, modelKey, version])
+  @@index([tenantId, status])
+}

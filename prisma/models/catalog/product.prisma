@@ -1,0 +1,62 @@
+model Product {
+  id               String            @id @default(cuid())
+  tenantId         String
+  categoryId       String
+  subCategoryId    String?
+  taxCategoryId    String?
+  sku              String            @db.VarChar(120)
+  productCode      String?           @db.VarChar(120)
+  name             String            @db.VarChar(255)
+  shortName        String?           @db.VarChar(120)
+  brand            String?           @db.VarChar(180)
+  description      String?
+  trackingMode     ProductTrackingMode @default(NONE)
+  status           ProductStatus     @default(ACTIVE)
+  unitOfMeasure    String            @db.VarChar(40)
+  baseUom          String?           @db.VarChar(40)
+  reorderLevel     Int               @default(0)
+  reorderQuantity  Int               @default(0)
+  minimumOrderQty  Int               @default(1)
+  shelfLifeDays    Int?
+  industry         String            @db.VarChar(80)
+  metadata         Json?
+  attributes       Json?
+  tags             String[]          @default([])
+  isActive         Boolean           @default(true)
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+  deletedAt        DateTime?
+
+  inventorySnapshots InventorySnapshot[]
+
+  tenant           Tenant            @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  category         ProductCategory   @relation(fields: [categoryId], references: [id], onDelete: Restrict)
+  subCategory      ProductSubCategory? @relation(fields: [subCategoryId], references: [id], onDelete: SetNull)
+  taxCategory      TaxCategory?      @relation(fields: [taxCategoryId], references: [id], onDelete: SetNull)
+  variants         ProductVariant[]
+  barcodes         ProductBarcode[]
+  images           ProductImage[]
+  supplierLinks    ProductSupplier[]
+  supplierCatalogs  SupplierProduct[]
+  inventories      Inventory[]
+  batches          InventoryBatch[]
+  movements        InventoryMovement[]
+  serials          InventorySerial[]
+  purchaseOrderItems PurchaseOrderItem[]
+  supplierInvoiceItems SupplierInvoiceItem[]
+  goodsReceiptNoteItems GoodsReceiptNoteItem[]
+  transferRequestItems TransferRequestItem[]
+  transferItems    InventoryTransferItem[]
+  dispatchItems    DispatchChallanItem[]
+  pickingTaskItems PickingTaskItem[]
+  saleItems        SaleItem[]
+  cartItems        CartItem[]
+  returnItems      ReturnItem[]
+
+  @@unique([tenantId, sku])
+  @@index([tenantId, categoryId])
+  @@index([tenantId, subCategoryId])
+  @@index([tenantId, taxCategoryId])
+  @@index([tenantId, status])
+  @@index([tenantId, name])
+}

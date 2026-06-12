@@ -1,0 +1,41 @@
+model Supplier {
+  id                 String          @id @default(cuid())
+  tenantId           String
+  supplierCode       String          @db.VarChar(120)
+  name               String          @db.VarChar(255)
+  legalName          String?         @db.VarChar(255)
+  status             SupplierStatus  @default(ACTIVE)
+  gstNumber          String?         @db.VarChar(40)
+  panNumber          String?         @db.VarChar(40)
+  tanNumber          String?         @db.VarChar(40)
+  drugLicenseNumber  String?         @db.VarChar(80)
+  fssaiLicenseNumber String?         @db.VarChar(80)
+  paymentTermsDays   Int             @default(30)
+  creditLimit        Decimal?        @db.Decimal(14, 2)
+  leadTimeDays       Int             @default(0)
+  performanceScore   Decimal?        @db.Decimal(5, 2)
+  website            String?         @db.VarChar(255)
+  notes              String?
+  metadata           Json?
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  deletedAt          DateTime?
+  taxCategory        TaxCategory?    @relation(fields: [taxCategoryId], references: [id], onDelete: SetNull)
+  taxCategoryId      String?
+
+  tenant             Tenant          @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  contacts           SupplierContact[]
+  addresses          SupplierAddress[]
+  products           SupplierProduct[]
+  performanceMetrics SupplierPerformanceMetric[]
+  users              User[]
+  productLinks       ProductSupplier[]
+  purchaseOrders     PurchaseOrder[]
+  supplierInvoices   SupplierInvoice[]
+  goodsReceiptNotes  GoodsReceiptNote[]
+
+  @@unique([tenantId, supplierCode])
+  @@index([tenantId, status])
+  @@index([tenantId, gstNumber])
+  @@index([tenantId, name])
+}

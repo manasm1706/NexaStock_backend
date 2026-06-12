@@ -1,0 +1,36 @@
+model PurchaseOrder {
+  id                 String             @id @default(cuid())
+  tenantId           String
+  supplierId         String
+  poNumber           String             @db.VarChar(120)
+  status             PurchaseOrderStatus @default(DRAFT)
+  orderDate          DateTime           @default(now())
+  expectedDeliveryAt DateTime?
+  approvedByUserId   String?
+  approvedAt         DateTime?
+  sentAt             DateTime?
+  acknowledgedAt     DateTime?
+  closedAt           DateTime?
+  subtotal           Decimal            @db.Decimal(14, 2)
+  taxTotal           Decimal            @db.Decimal(14, 2)
+  discountTotal      Decimal            @db.Decimal(14, 2)
+  grandTotal         Decimal            @db.Decimal(14, 2)
+  currencyCode       String             @default("USD") @db.VarChar(8)
+  notes              String?
+  metadata           Json?
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+  deletedAt          DateTime?
+
+  tenant             Tenant             @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  supplier           Supplier           @relation(fields: [supplierId], references: [id], onDelete: Restrict)
+  approvedBy         User?              @relation("PurchaseOrderApprovedBy", fields: [approvedByUserId], references: [id], onDelete: SetNull)
+  items              PurchaseOrderItem[]
+  supplierInvoices   SupplierInvoice[]
+  goodsReceiptNotes  GoodsReceiptNote[]
+
+  @@unique([tenantId, poNumber])
+  @@index([tenantId, status])
+  @@index([tenantId, supplierId])
+  @@index([tenantId, orderDate])
+}

@@ -1,0 +1,42 @@
+model ProductVariant {
+  id               String           @id @default(cuid())
+  tenantId         String
+  productId        String
+  variantCode      String           @db.VarChar(120)
+  sku              String           @db.VarChar(120)
+  name             String           @db.VarChar(255)
+  isDefault        Boolean          @default(false)
+  trackingMode     ProductTrackingMode @default(NONE)
+  attributes       Json?
+  metadata         Json?
+  isActive         Boolean          @default(true)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+  deletedAt        DateTime?
+
+  inventorySnapshots InventorySnapshot[]
+
+  tenant           Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  product          Product          @relation(fields: [productId], references: [id], onDelete: Cascade)
+  barcodes         ProductBarcode[]
+  images           ProductImage[]
+  inventories      Inventory[]
+  inventoryBatches InventoryBatch[]
+  inventorySerials InventorySerial[]
+  movements        InventoryMovement[]
+  purchaseOrderItems PurchaseOrderItem[]
+  supplierInvoiceItems SupplierInvoiceItem[]
+  goodsReceiptNoteItems GoodsReceiptNoteItem[]
+  transferRequestItems TransferRequestItem[]
+  transferItems    InventoryTransferItem[]
+  dispatchItems    DispatchChallanItem[]
+  pickingTaskItems PickingTaskItem[]
+  saleItems        SaleItem[]
+  cartItems        CartItem[]
+  returnItems      ReturnItem[]
+
+  @@unique([tenantId, sku])
+  @@unique([tenantId, productId, variantCode])
+  @@index([tenantId, productId])
+  @@index([tenantId, isDefault])
+}

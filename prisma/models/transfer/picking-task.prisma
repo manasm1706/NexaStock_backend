@@ -1,0 +1,33 @@
+model PickingTask {
+  id                String           @id @default(cuid())
+  tenantId          String
+  taskNumber        String           @db.VarChar(120)
+  transferRequestId String?
+  dispatchChallanId String?
+  assignedToUserId  String?
+  zoneId            String?
+  binId             String?
+  status            PickingTaskStatus @default(PENDING)
+  priority          String           @default("normal") @db.VarChar(40)
+  startedAt         DateTime?
+  completedAt       DateTime?
+  instructions      String?
+  metadata          Json?
+  createdAt         DateTime         @default(now())
+  updatedAt         DateTime         @updatedAt
+  locationId        String?
+
+
+  location          Location?        @relation("LocationPickingTasks", fields: [locationId], references: [id], onDelete: SetNull)
+
+  tenant            Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  request           TransferRequest? @relation(fields: [transferRequestId], references: [id], onDelete: SetNull)
+  challan           DispatchChallan? @relation(fields: [dispatchChallanId], references: [id], onDelete: SetNull)
+  assignedTo        User?            @relation(fields: [assignedToUserId], references: [id], onDelete: SetNull)
+  zone              LocationZone?    @relation("ZonePickingTasks", fields: [zoneId], references: [id], onDelete: SetNull)
+  bin               StorageBin?      @relation(fields: [binId], references: [id], onDelete: SetNull)
+  items             PickingTaskItem[]
+
+  @@unique([tenantId, taskNumber])
+  @@index([tenantId, status])
+}

@@ -1,0 +1,25 @@
+model ActivityEvent {
+  id              String         @id @default(cuid())
+  tenantId        String
+  actorUserId     String?
+  source          ActivitySource @default(UI)
+  eventType       String         @db.VarChar(120)
+  entityType      String         @db.VarChar(120)
+  entityId        String?        @db.VarChar(120)
+  action          String         @db.VarChar(120)
+  description     String?
+  payload         Json?
+  sessionId       String?
+  requestId       String?        @db.VarChar(120)
+  metadata        Json?
+  occurredAt      DateTime       @default(now())
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+
+  tenant          Tenant         @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  actor           User?          @relation("ActivityActor", fields: [actorUserId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, occurredAt])
+  @@index([tenantId, entityType, entityId])
+  @@index([tenantId, eventType])
+}
