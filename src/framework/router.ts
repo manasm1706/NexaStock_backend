@@ -1,7 +1,7 @@
 import type { IncomingMessage, ServerResponse } from "node:http";
-import { HttpError, notFound } from "./errors";
+import { AppError, NotFoundError } from "../lib/errors";
 import { buildContext, readBody, sendJson } from "./http";
-import type { HttpMethod, RequestContext, RouteDefinition, RouteParams } from "./types";
+import type { HttpMethod, RequestContext, RouteDefinition, RouteParams, RouteHandler, Middleware } from "./types";
 
 function splitPath(path: string): string[] {
   return path.split("/").filter(Boolean);
@@ -18,9 +18,9 @@ function matchPath(routePath: string, requestPath: string): RouteParams | null {
   const params: RouteParams = {};
   for (let index = 0; index < routeSegments.length; index += 1) {
     const expected = routeSegments[index];
-      if (!expected) {
-        return null;
-      }
+    if (!expected) {
+      return null;
+    }
     const actual = requestSegments[index];
     if (expected.startsWith(":")) {
       params[expected.slice(1)] = decodeURIComponent(actual ?? "");
@@ -35,6 +35,31 @@ function matchPath(routePath: string, requestPath: string): RouteParams | null {
   return params;
 }
 
+export function compose(middlewares: Middleware[]) {
+  return (handler: RouteHandler): RouteHandler => {
+    return (context: RequestContext) => {
+      let index = -1;
+      function dispatch(i: number): Promise<unknown> {
+        if (i <= index) {
+          return Promise.reject(new Error("next() called multiple times"));
+        }
+        index = i;
+        const fn = middlewares[i];
+        if (i === middlewares.length) {
+          return Promise.resolve(handler(context));
+        }
+        if (!fn) return Promise.resolve();
+        try {
+          return Promise.resolve(fn(context, () => dispatch(i + 1)));
+        } catch (err) {
+          return Promise.reject(err);
+        }
+      }
+      return dispatch(0);
+    };
+  };
+}
+
 export class Router {
   private readonly routes: RouteDefinition[] = [];
 
@@ -43,8 +68,19 @@ export class Router {
     return this;
   }
 
-  route(method: HttpMethod, path: string, handler: RouteDefinition["handler"]): this {
-    return this.register({ method, path, handler });
+  route(
+    method: HttpMethod,
+    path: string,
+    middlewaresOrHandler: Middleware[] | RouteHandler,
+    handler?: RouteHandler
+  ): this {
+    let finalHandler: RouteHandler;
+    if (Array.isArray(middlewaresOrHandler)) {
+      finalHandler = compose(middlewaresOrHandler)(handler!);
+    } else {
+      finalHandler = middlewaresOrHandler;
+    }
+    return this.register({ method, path, handler: finalHandler });
   }
 
   async handle(request: IncomingMessage, response: ServerResponse): Promise<void> {
@@ -54,9 +90,10 @@ export class Router {
 
     if (!method || !matchedRoute) {
       sendJson(response, 404, {
+        success: false,
         error: {
           code: "NOT_FOUND",
-          message: notFound().message
+          message: "Route not found"
         }
       });
       return;
@@ -79,6 +116,7 @@ export class Router {
       }
 
       sendJson(response, 200, {
+        success: true,
         data: result,
         meta: {
           requestId: context.requestId,
@@ -93,8 +131,9 @@ export class Router {
   private handleError(error: unknown, context: RequestContext): void {
     const response = context.response;
 
-    if (error instanceof HttpError) {
+    if (error instanceof AppError) {
       sendJson(response, error.statusCode, {
+        success: false,
         error: {
           code: error.code,
           message: error.message,
@@ -107,6 +146,7 @@ export class Router {
 
     const message = error instanceof Error ? error.message : "Unexpected error";
     sendJson(response, 500, {
+      success: false,
       error: {
         code: "INTERNAL_SERVER_ERROR",
         message,

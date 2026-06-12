@@ -1,4 +1,41 @@
-node_modules
-dist
+# Dependencies
+node_modules/
+
+# Environment
 .env
-/src/generated/prisma
+.env.*
+!.env.example
+
+# Prisma generated client
+src/generated/
+
+# Build outputs
+dist/
+build/
+
+# Logs
+*.log
+npm-debug.log*
+pnpm-debug.log*
+yarn-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Prisma Studio
+.prisma/
+
+# TypeScript cache
+*.tsbuildinfo
+
+# Coverage
+coverage/
+
+# Temporary files
+tmp/
+temp/

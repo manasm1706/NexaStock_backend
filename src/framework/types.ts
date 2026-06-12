@@ -20,6 +20,9 @@ export interface RequestContext {
 
 export type RouteHandler = (context: RequestContext) => Promise<unknown> | unknown;
 
+export type NextFunction = () => Promise<unknown>;
+export type Middleware = (context: RequestContext, next: NextFunction) => Promise<unknown> | unknown;
+
 export interface RouteDefinition {
   method: HttpMethod;
   path: string;

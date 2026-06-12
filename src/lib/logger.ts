@@ -1,0 +1,38 @@
+export const logger = {
+  info(message: string, meta?: Record<string, unknown>): void {
+    // eslint-disable-next-line no-console
+    console.log(
+      JSON.stringify({
+        level: "INFO",
+        timestamp: new Date().toISOString(),
+        message,
+        ...meta
+      })
+    );
+  },
+  warn(message: string, meta?: Record<string, unknown>): void {
+    // eslint-disable-next-line no-console
+    console.warn(
+      JSON.stringify({
+        level: "WARN",
+        timestamp: new Date().toISOString(),
+        message,
+        ...meta
+      })
+    );
+  },
+  error(message: string, error?: unknown, meta?: Record<string, unknown>): void {
+    const errorDetails =
+      error instanceof Error ? { name: error.name, message: error.message, stack: error.stack } : error;
+    // eslint-disable-next-line no-console
+    console.error(
+      JSON.stringify({
+        level: "ERROR",
+        timestamp: new Date().toISOString(),
+        message,
+        error: errorDetails,
+        ...meta
+      })
+    );
+  }
+};
