@@ -19,7 +19,11 @@ import { registerAIRoutes } from "../modules/ai/routes";
 import { registerComplianceRoutes } from "../modules/compliance/routes";
 import { registerProcurementRoutes } from "../modules/procurement/routes";
 
+import { LocationsRepository } from "../modules/locations/repository";
+
 export function registerRoutes(router: Router, env: AppEnv): void {
+  const locationsRepo = new LocationsRepository();
+
   // 1. Meta / System Endpoints
   router.route("GET", "/api/v1/meta", [], () => ({
     appName: env.appName,
@@ -38,9 +42,7 @@ export function registerRoutes(router: Router, env: AppEnv): void {
   });
 
   router.route("GET", "/api/v1/modules", [requireAuth, resolveTenant], async (context) => {
-    const locations = await prisma.location.findMany({
-      where: { tenantId: context.tenantId }
-    });
+    const locations = await locationsRepo.findLocations(context.tenantId);
 
     return {
       inventory: true,

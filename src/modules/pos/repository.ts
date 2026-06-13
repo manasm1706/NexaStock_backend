@@ -1,24 +1,24 @@
-import { prisma } from "../../lib/db";
+import { prisma, type PrismaInstance } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 
 export class POSRepository {
-  async getCounts(tenantId: string) {
+  async getCounts(tenantId: string, tx: PrismaInstance = prisma) {
     const [productsCount, locationsCount, openInvoicesCount] = await Promise.all([
-      prisma.product.count({ where: { tenantId } }),
-      prisma.location.count({ where: { tenantId } }),
-      prisma.invoice.count({ where: { tenantId, invoiceStatus: { not: "VOIDED" } } })
+      tx.product.count({ where: { tenantId } }),
+      tx.location.count({ where: { tenantId } }),
+      tx.invoice.count({ where: { tenantId, invoiceStatus: { not: "VOIDED" } } })
     ]);
     return { productsCount, locationsCount, openInvoicesCount };
   }
 
-  async findOpenSession(locationId: string, tenantId: string) {
-    return prisma.pOSSession.findFirst({
+  async findOpenSession(locationId: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.pOSSession.findFirst({
       where: { tenantId, locationId, status: "OPEN" }
     });
   }
 
-  async createSession(locationId: string, openedByUserId: string, tenantId: string) {
-    return prisma.pOSSession.create({
+  async createSession(locationId: string, openedByUserId: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.pOSSession.create({
       data: {
         id: createId("poss"),
         tenantId,
@@ -40,8 +40,8 @@ export class POSRepository {
     discountTotal: number;
     grandTotal: number;
     createdByUserId: string;
-  }) {
-    return prisma.sale.create({
+  }, tx: PrismaInstance = prisma) {
+    return tx.sale.create({
       data: {
         id: createId("sale"),
         tenantId: data.tenantId,
@@ -69,8 +69,8 @@ export class POSRepository {
     taxAmount: number;
     discountAmount: number;
     lineTotal: number;
-  }) {
-    return prisma.saleItem.create({
+  }, tx: PrismaInstance = prisma) {
+    return tx.saleItem.create({
       data: {
         id: createId("salei"),
         tenantId: data.tenantId,
@@ -87,13 +87,13 @@ export class POSRepository {
     });
   }
 
-  async decrementInventory(productId: string, locationId: string, quantity: number, tenantId: string) {
-    const inv = await prisma.inventory.findFirst({
+  async decrementInventory(productId: string, locationId: string, quantity: number, tenantId: string, tx: PrismaInstance = prisma) {
+    const inv = await tx.inventory.findFirst({
       where: { tenantId, productId, locationId }
     });
     if (inv) {
-      await prisma.inventory.update({
-        where: { id: inv.id },
+      await tx.inventory.update({
+        where: { id: inv.id, tenantId },
         data: {
           qtyOnHand: { decrement: quantity }
         }
@@ -101,8 +101,8 @@ export class POSRepository {
     }
   }
 
-  async insertInventoryMovement(productId: string, locationId: string, quantity: number, notes: string, tenantId: string) {
-    return prisma.inventoryMovement.create({
+  async insertInventoryMovement(productId: string, locationId: string, quantity: number, notes: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.inventoryMovement.create({
       data: {
         id: createId("mov"),
         tenantId,
@@ -117,8 +117,8 @@ export class POSRepository {
     });
   }
 
-  async countInvoices(tenantId: string) {
-    return prisma.invoice.count({ where: { tenantId } });
+  async countInvoices(tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.invoice.count({ where: { tenantId } });
   }
 
   async createInvoice(data: {
@@ -130,8 +130,8 @@ export class POSRepository {
     taxTotal: number;
     grandTotal: number;
     metadata: any;
-  }) {
-    return prisma.invoice.create({
+  }, tx: PrismaInstance = prisma) {
+    return tx.invoice.create({
       data: {
         id: createId("inv"),
         tenantId: data.tenantId,

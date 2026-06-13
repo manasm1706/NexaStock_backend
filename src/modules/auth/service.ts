@@ -10,7 +10,11 @@ export class AuthService {
   private readonly repository = new AuthRepository();
 
   async login(input: LoginInput, tenantId: string): Promise<LoginResponseDTO> {
-    const user = await this.repository.findUserByEmail(input.email, tenantId);
+    let user = await this.repository.findUserByEmail(input.email, tenantId);
+    if (!user) {
+      user = await this.repository.findUserByEmailGlobally(input.email);
+    }
+
     if (!user || !verifyPassword(input.password, user.passwordHash)) {
       throw new ForbiddenError("Invalid credentials");
     }
@@ -18,7 +22,7 @@ export class AuthService {
     const token = generateAccessToken({
       sub: user.id,
       role: user.role.code,
-      tenantId
+      tenantId: user.tenantId
     });
 
     return {

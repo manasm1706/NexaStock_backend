@@ -7,7 +7,7 @@ export class TenantController {
 
   start = async (context: RequestContext) => {
     const body = context.body as any;
-    return this.service.startOnboarding(body.organizationName, body.industry, body.plan);
+    return this.service.startOnboarding(body);
   };
 
   summary = async (context: RequestContext) => {

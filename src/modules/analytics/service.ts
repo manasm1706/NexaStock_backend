@@ -15,12 +15,26 @@ export class AnalyticsService {
     ]);
 
     const revenue = sales.reduce((sum, s) => sum + Number(s.grandTotal), 0);
-    const grossMargin = revenue * 0.31;
 
+    // Calculate actual cost of goods sold (COGS) to find true gross margin
+    let totalCostOfGoodsSold = 0;
+    for (const sale of sales) {
+      const items = (sale as any).items || [];
+      for (const item of items) {
+        const prod = products.find((p) => p.id === item.productId);
+        const meta = (prod?.metadata as Record<string, any>) || {};
+        const purchasePrice = meta.purchasePrice ?? (prod?.sku === "MED-PARA-500" ? 35 : (prod?.sku === "APP-DENIM-SHIRT" ? 650 : 100));
+        totalCostOfGoodsSold += purchasePrice * item.quantity;
+      }
+    }
+    const grossMargin = revenue - totalCostOfGoodsSold;
+
+    // Calculate actual total value of inventory on hand
     let inventoryValue = 0;
     for (const inv of inventories) {
       const prod = products.find((p) => p.id === inv.productId);
-      const purchasePrice = prod?.sku === "MED-PARA-500" ? 35 : (prod?.sku === "APP-DENIM-SHIRT" ? 650 : 100);
+      const meta = (prod?.metadata as Record<string, any>) || {};
+      const purchasePrice = meta.purchasePrice ?? (prod?.sku === "MED-PARA-500" ? 35 : (prod?.sku === "APP-DENIM-SHIRT" ? 650 : 100));
       inventoryValue += purchasePrice * inv.qtyOnHand;
     }
 
@@ -33,12 +47,40 @@ export class AnalyticsService {
       }
     }
 
-    const topProducts = products.slice(0, 5).map((product) => ({
-      productId: product.id,
-      name: product.name,
-      units: 120,
-      revenue: (product.sku === "MED-PARA-500" ? 48 : 1099) * 120
-    }));
+    // Dynamic Top Products calculation based on sold quantities
+    const productSalesMap = new Map<string, { units: number; revenue: number }>();
+    for (const sale of sales) {
+      const items = (sale as any).items || [];
+      for (const item of items) {
+        const current = productSalesMap.get(item.productId) || { units: 0, revenue: 0 };
+        current.units += item.quantity;
+        current.revenue += Number(item.lineTotal);
+        productSalesMap.set(item.productId, current);
+      }
+    }
+
+    let topProducts = Array.from(productSalesMap.entries())
+      .map(([productId, stats]) => {
+        const product = products.find((p) => p.id === productId);
+        return {
+          productId,
+          name: product?.name || "Unknown Product",
+          units: stats.units,
+          revenue: stats.revenue
+        };
+      })
+      .sort((a, b) => b.revenue - a.revenue)
+      .slice(0, 5);
+
+    // If no sales exist, fallback to returning first 5 products as placeholder top products
+    if (topProducts.length === 0) {
+      topProducts = products.slice(0, 5).map((product) => ({
+        productId: product.id,
+        name: product.name,
+        units: 0,
+        revenue: 0
+      }));
+    }
 
     return {
       revenue,

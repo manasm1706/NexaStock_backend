@@ -1,28 +1,28 @@
-import { prisma } from "../../lib/db";
+import { prisma, type PrismaInstance } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 
 export class InventoryRepository {
-  async findBalances(tenantId: string) {
-    return prisma.inventory.findMany({
+  async findBalances(tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.inventory.findMany({
       where: { tenantId }
     });
   }
 
-  async findMovements(tenantId: string) {
-    return prisma.inventoryMovement.findMany({
+  async findMovements(tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.inventoryMovement.findMany({
       where: { tenantId },
       orderBy: { occurredAt: "desc" }
     });
   }
 
-  async findInventoryRecord(productId: string, locationId: string, tenantId: string) {
-    return prisma.inventory.findFirst({
+  async findInventoryRecord(productId: string, locationId: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.inventory.findFirst({
       where: { tenantId, productId, locationId }
     });
   }
 
-  async createInventoryRecord(productId: string, locationId: string, qtyOnHand: number, tenantId: string) {
-    return prisma.inventory.create({
+  async createInventoryRecord(productId: string, locationId: string, qtyOnHand: number, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.inventory.create({
       data: {
         id: createId("inv"),
         tenantId,
@@ -34,17 +34,17 @@ export class InventoryRepository {
     });
   }
 
-  async updateInventoryRecordQty(id: string, incrementQty: number) {
-    return prisma.inventory.update({
-      where: { id },
+  async updateInventoryRecordQty(id: string, incrementQty: number, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.inventory.update({
+      where: { id, tenantId },
       data: {
         qtyOnHand: { increment: incrementQty }
       }
     });
   }
 
-  async insertMovement(productId: string, locationId: string, quantity: number, notes: string, tenantId: string) {
-    return prisma.inventoryMovement.create({
+  async insertMovement(productId: string, locationId: string, quantity: number, notes: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.inventoryMovement.create({
       data: {
         id: createId("mov"),
         tenantId,
@@ -59,8 +59,8 @@ export class InventoryRepository {
     });
   }
 
-  async insertStockAdjustment(inventoryId: string, quantityBefore: number, quantityAfter: number, varianceQty: number, reasonCode: string, tenantId: string) {
-    return prisma.stockAdjustment.create({
+  async insertStockAdjustment(inventoryId: string, quantityBefore: number, quantityAfter: number, varianceQty: number, reasonCode: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.stockAdjustment.create({
       data: {
         id: createId("sadj"),
         tenantId,

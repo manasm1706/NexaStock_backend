@@ -2,35 +2,54 @@ import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 
 export class TenantRepository {
-  async createTenant(id: string, name: string, industry: string) {
+  async createTenant(data: {
+    id: string;
+    name: string;
+    legalName?: string;
+    industry: string;
+    primaryCurrency?: string;
+    timezone?: string;
+  }) {
+    const baseSlug = (data.legalName || data.name).toLowerCase().replace(/[^a-z0-9]/g, "-");
+    const uniqueSlug = `${baseSlug || "tenant"}-${data.id.substring(data.id.length - 6)}`;
     return prisma.tenant.create({
       data: {
-        id,
-        name,
-        legalName: name,
-        slug: name.toLowerCase().replace(/[^a-z0-9]/g, "-"),
-        status: "TRIAL",
+        id: data.id,
+        name: data.name,
+        legalName: data.legalName || data.name,
+        slug: uniqueSlug,
+        status: "ACTIVE",
         onboardingStatus: "completed",
         operationalModel: "HYBRID",
-        industry,
-        primaryCurrency: "USD"
+        industry: data.industry,
+        primaryCurrency: data.primaryCurrency || "USD",
+        timezone: data.timezone || "UTC"
       }
     });
   }
 
-  async createTenantSettings(tenantId: string) {
+  async createTenantSettings(data: {
+    tenantId: string;
+    currencyCode?: string;
+    timezone?: string;
+    aiPreference?: string;
+  }) {
     return prisma.tenantSettings.create({
       data: {
         id: createId("ts"),
-        tenantId,
-        operationalModel: "HYBRID"
+        tenantId: data.tenantId,
+        operationalModel: "HYBRID",
+        currencyCode: data.currencyCode || "USD",
+        timezone: data.timezone || "UTC",
+        aiPreferences: data.aiPreference ? { defaultAutonomy: data.aiPreference } : {}
       }
     });
   }
 
   async createDefaultRoles(tenantId: string) {
+    const ownerRoleId = "role_" + createId("owner");
     const roleData = [
-      { id: "role_" + createId("owner"), code: "business_owner", name: "Business Owner", key: "BUSINESS_OWNER" },
+      { id: ownerRoleId, code: "business_owner", name: "Business Owner", key: "BUSINESS_OWNER" },
       { id: "role_" + createId("ops"), code: "operations_manager", name: "Operations Manager", key: "OPS_MANAGER" },
       { id: "role_" + createId("wh"), code: "warehouse_manager", name: "Warehouse Manager", key: "WAREHOUSE_MANAGER" },
       { id: "role_" + createId("store"), code: "store_manager", name: "Store Manager", key: "STORE_MANAGER" },
@@ -49,6 +68,8 @@ export class TenantRepository {
         }
       });
     }
+
+    return { ownerRoleId };
   }
 
   async findTenantById(id: string) {

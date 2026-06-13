@@ -11,7 +11,8 @@ export class AnalyticsRepository {
 
   async getCompletedSales(tenantId: string) {
     return prisma.sale.findMany({
-      where: { tenantId, status: "COMPLETED" }
+      where: { tenantId, status: "COMPLETED" },
+      include: { items: true }
     });
   }
 

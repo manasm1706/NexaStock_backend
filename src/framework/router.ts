@@ -2,6 +2,7 @@ import type { IncomingMessage, ServerResponse } from "node:http";
 import { AppError, NotFoundError } from "../lib/errors";
 import { buildContext, readBody, sendJson } from "./http";
 import type { HttpMethod, RequestContext, RouteDefinition, RouteParams, RouteHandler, Middleware } from "./types";
+import { tenantLocalStorage } from "../lib/context";
 
 function splitPath(path: string): string[] {
   return path.split("/").filter(Boolean);
@@ -104,7 +105,7 @@ export class Router {
 
     try {
       context.body = await readBody(request);
-      const result = await matchedRoute.handler(context);
+      const result = await tenantLocalStorage.run(context, () => matchedRoute.handler(context));
 
       if (response.writableEnded) {
         return;
@@ -129,6 +130,7 @@ export class Router {
   }
 
   private handleError(error: unknown, context: RequestContext): void {
+    console.error("[Router Error]", error);
     const response = context.response;
 
     if (error instanceof AppError) {

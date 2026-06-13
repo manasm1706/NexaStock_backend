@@ -12,4 +12,10 @@ export class AIRepository {
       where: { tenantId }
     });
   }
+
+  async getAnomalies(tenantId: string) {
+    return prisma.anomalyRecord.findMany({
+      where: { tenantId }
+    });
+  }
 }

@@ -11,6 +11,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.16.5",
     "@types/pg": "^8.20.0",
     "prisma-import": "^1.0.5",
@@ -20,6 +21,7 @@
   "dependencies": {
     "@prisma/adapter-pg": "^7.8.0",
     "@prisma/client": "^7.8.0",
+    "bcryptjs": "^3.0.3",
     "pg": "^8.21.0",
     "prisma": "^7.8.0",
     "zod": "^4.4.3"

@@ -29,11 +29,17 @@ export class ProductsService {
       supplierIds = [] 
     } = input;
 
-    const result = await prisma.$transaction(async () => {
-      let category = await this.repository.findCategoryByName(catName, tenantId);
+    const result = await prisma.$transaction(async (tx) => {
+      let category = await this.repository.findCategoryByName(catName, tenantId, tx);
       if (!category) {
-        category = await this.repository.createCategory(catName, tenantId);
+        category = await this.repository.createCategory(catName, tenantId, tx);
       }
+
+      const combinedMetadata = {
+        ...(metadata || {}),
+        purchasePrice,
+        sellingPrice
+      };
 
       const product = await this.repository.createProduct({
         tenantId,
@@ -46,11 +52,11 @@ export class ProductsService {
         industry,
         brand: brand || null,
         isActive: isActive !== false,
-        metadata: metadata || {}
-      });
+        metadata: combinedMetadata
+      }, tx);
 
       for (const supId of supplierIds) {
-        await this.repository.linkSupplier(product.id, supId, tenantId);
+        await this.repository.linkSupplier(product.id, supId, tenantId, tx);
       }
 
       return product;

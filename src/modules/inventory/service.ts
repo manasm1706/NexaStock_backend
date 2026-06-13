@@ -20,19 +20,19 @@ export class InventoryService {
   async adjustInventory(input: AdjustInventoryInput, actorId: string, tenantId: string) {
     const { productId, locationId, quantity, reason } = input;
 
-    const result = await prisma.$transaction(async () => {
-      let inv = await this.repository.findInventoryRecord(productId, locationId, tenantId);
+    const result = await prisma.$transaction(async (tx) => {
+      let inv = await this.repository.findInventoryRecord(productId, locationId, tenantId, tx);
       let qtyBefore = 0;
 
       if (!inv) {
-        inv = await this.repository.createInventoryRecord(productId, locationId, quantity, tenantId);
+        inv = await this.repository.createInventoryRecord(productId, locationId, quantity, tenantId, tx);
       } else {
         qtyBefore = inv.qtyOnHand;
-        inv = await this.repository.updateInventoryRecordQty(inv.id, quantity);
+        inv = await this.repository.updateInventoryRecordQty(inv.id, quantity, tenantId, tx);
       }
 
-      const movement = await this.repository.insertMovement(productId, locationId, quantity, reason, tenantId);
-      await this.repository.insertStockAdjustment(inv.id, qtyBefore, inv.qtyOnHand, quantity, reason, tenantId);
+      const movement = await this.repository.insertMovement(productId, locationId, quantity, reason, tenantId, tx);
+      await this.repository.insertStockAdjustment(inv.id, qtyBefore, inv.qtyOnHand, quantity, reason, tenantId, tx);
 
       return movement;
     });

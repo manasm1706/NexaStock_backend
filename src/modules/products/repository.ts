@@ -1,27 +1,27 @@
-import { prisma } from "../../lib/db";
+import { prisma, type PrismaInstance } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 
 export class ProductsRepository {
-  async findProducts(tenantId: string, categoryName?: string) {
+  async findProducts(tenantId: string, categoryName?: string, tx: PrismaInstance = prisma) {
     const whereClause: any = { tenantId };
     if (categoryName) {
       whereClause.category = { name: categoryName };
     }
 
-    return prisma.product.findMany({
+    return tx.product.findMany({
       where: whereClause,
       include: { category: true, supplierLinks: true }
     });
   }
 
-  async findCategoryByName(name: string, tenantId: string) {
-    return prisma.productCategory.findFirst({
+  async findCategoryByName(name: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.productCategory.findFirst({
       where: { name, tenantId }
     });
   }
 
-  async createCategory(name: string, tenantId: string) {
-    return prisma.productCategory.create({
+  async createCategory(name: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.productCategory.create({
       data: {
         id: createId("cat"),
         tenantId,
@@ -44,8 +44,8 @@ export class ProductsRepository {
     brand: string | null;
     isActive: boolean;
     metadata: any;
-  }) {
-    return prisma.product.create({
+  }, tx: PrismaInstance = prisma) {
+    return tx.product.create({
       data: {
         id: createId("prod"),
         tenantId: data.tenantId,
@@ -64,8 +64,8 @@ export class ProductsRepository {
     });
   }
 
-  async linkSupplier(productId: string, supplierId: string, tenantId: string) {
-    return prisma.productSupplier.create({
+  async linkSupplier(productId: string, supplierId: string, tenantId: string, tx: PrismaInstance = prisma) {
+    return tx.productSupplier.create({
       data: {
         id: createId("psup"),
         tenantId,

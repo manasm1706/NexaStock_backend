@@ -11,6 +11,15 @@ export class AuthRepository {
     });
   }
 
+  async findUserByEmailGlobally(email: string) {
+    return prisma.user.findFirst({
+      where: {
+        email: { equals: email, mode: "insensitive" }
+      },
+      include: { role: true }
+    });
+  }
+
   async findUserById(id: string, tenantId: string) {
     return prisma.user.findFirst({
       where: { id, tenantId },

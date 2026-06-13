@@ -1,4 +1,4 @@
-import { PrismaClient } from "../generated/prisma";
+import { PrismaClient, Prisma } from "../generated/prisma";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 
@@ -9,4 +9,5 @@ const adapter = new PrismaPg(pool);
 
 export const prisma = new PrismaClient({ adapter });
 export { pool };
-export type PrismaInstance = typeof prisma;
+export type PrismaInstance = Prisma.TransactionClient;
+

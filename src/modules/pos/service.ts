@@ -24,11 +24,11 @@ export class POSService {
     const taxTotal = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice * ((line.taxRate || 0) / 100), 0);
     const total = subtotal - discountTotal + taxTotal;
 
-    const invoice = await prisma.$transaction(async () => {
+    const invoice = await prisma.$transaction(async (tx) => {
       // 1. Session resolution
-      let session = await this.repository.findOpenSession(locationId, tenantId);
+      let session = await this.repository.findOpenSession(locationId, tenantId, tx);
       if (!session) {
-        session = await this.repository.createSession(locationId, actorId, tenantId);
+        session = await this.repository.createSession(locationId, actorId, tenantId, tx);
       }
 
       // 2. Create Sale
@@ -41,7 +41,7 @@ export class POSService {
         discountTotal,
         grandTotal: total,
         createdByUserId: actorId
-      });
+      }, tx);
 
       // 3. Create Sale Items, Deduct Inventory, Record Movements
       let lineNum = 1;
@@ -62,17 +62,17 @@ export class POSService {
           taxAmount,
           discountAmount,
           lineTotal
-        });
+        }, tx);
 
         // Deduct inventory
-        await this.repository.decrementInventory(line.productId, locationId, line.quantity, tenantId);
+        await this.repository.decrementInventory(line.productId, locationId, line.quantity, tenantId, tx);
 
         // Record movement log
-        await this.repository.insertInventoryMovement(line.productId, locationId, line.quantity, `POS Sale ${sale.id}`, tenantId);
+        await this.repository.insertInventoryMovement(line.productId, locationId, line.quantity, `POS Sale ${sale.id}`, tenantId, tx);
       }
 
       // 4. Create Invoice
-      const invoiceCount = await this.repository.countInvoices(tenantId);
+      const invoiceCount = await this.repository.countInvoices(tenantId, tx);
       const invoiceNum = `INV-${String(invoiceCount + 1).padStart(6, "0")}`;
 
       return this.repository.createInvoice({
@@ -88,7 +88,7 @@ export class POSService {
           customerPhone,
           paymentMode: paymentMode.toUpperCase()
         }
-      });
+      }, tx);
     });
 
     // Write Audit Log

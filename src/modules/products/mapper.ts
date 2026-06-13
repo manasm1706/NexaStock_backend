@@ -3,9 +3,9 @@ import type { ProductDTO } from "./dto";
 export function toProductDTO(prod: any, purchasePrice?: number, sellingPrice?: number): ProductDTO {
   const meta = (prod.metadata as Record<string, any>) || {};
   
-  const finalPurchasePrice = purchasePrice ?? (prod.sku === "MED-PARA-500" ? 35 : (prod.sku === "APP-DENIM-SHIRT" ? 650 : 100));
-  const finalSellingPrice = sellingPrice ?? (prod.sku === "MED-PARA-500" ? 48 : (prod.sku === "APP-DENIM-SHIRT" ? 1099 : 150));
-  const finalMrp = prod.sku === "MED-PARA-500" ? 52 : (prod.sku === "APP-DENIM-SHIRT" ? 1199 : 180);
+  const finalPurchasePrice = purchasePrice ?? meta.purchasePrice ?? (prod.sku === "MED-PARA-500" ? 35 : (prod.sku === "APP-DENIM-SHIRT" ? 650 : 100));
+  const finalSellingPrice = sellingPrice ?? meta.sellingPrice ?? (prod.sku === "MED-PARA-500" ? 48 : (prod.sku === "APP-DENIM-SHIRT" ? 1099 : 150));
+  const finalMrp = meta.mrp ?? (prod.sku === "MED-PARA-500" ? 52 : (prod.sku === "APP-DENIM-SHIRT" ? 1199 : 180));
 
   return {
     id: prod.id,

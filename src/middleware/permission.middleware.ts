@@ -14,12 +14,21 @@ export function requirePermission(permissionCode: PermissionKey): Middleware {
 
     const roleCode = context.role as Role;
 
+    // Map camelCase permission key to uppercase DB permission code format
+    const permissionKeyMap: Record<string, string> = {
+      productManagement: "PRODUCT_MANAGEMENT",
+      inventoryAdjustments: "INVENTORY_WRITE",
+      posSales: "POS_SALES",
+      dispatchOperations: "INVENTORY_WRITE"
+    };
+    const dbPermissionCode = permissionKeyMap[permissionCode] || permissionCode.toUpperCase();
+
     // 1. Dynamic DB role-permission mapping lookup
     const dbPermission = await prisma.rolePermission.findFirst({
       where: {
         tenantId: context.tenantId,
         role: { code: roleCode },
-        permission: { code: permissionCode },
+        permission: { code: dbPermissionCode },
         allowed: true
       }
     });
