@@ -25,7 +25,8 @@ export class TenantService {
             .replace(/\s+/g, "-")
             .replace(/[^a-z0-9-]/g, ""),
 
-          industry: input.industry,
+          // Ensure industry is never empty — required non-nullable field
+          industry: input.businessType || input.industry || "general",
           primaryCurrency: input.currency || "USD",
           timezone: input.timezone || "UTC"
         }
@@ -37,7 +38,11 @@ export class TenantService {
           tenantId,
           currencyCode: input.currency || "USD",
           timezone: input.timezone || "UTC",
-          aiPreferences: input.aiPreference || "Co-pilot"
+          // aiPreferences is Json? — must be an object, not a plain string
+          aiPreferences: { mode: input.aiPreference || "Co-pilot" },
+          operationalPreferences: {
+            businessType: input.businessType || input.industry || "general"
+          }
         }
       });
 
@@ -117,32 +122,34 @@ export class TenantService {
         }
       });
 
-      // 5. Create Warehouse
-      if (input.warehouse) {
-        const warehouseLocationId = createId("loc");
+      // 5. Create Warehouses
+      if (input.warehouses?.length) {
+        for (const wh of input.warehouses) {
+          const warehouseLocationId = createId("loc");
 
-        const warehouseLocation = await tx.location.create({
-          data: {
-            id: warehouseLocationId,
-            tenantId,
-            name: input.warehouse.name,
-            code: input.warehouse.code,
-            locationType: "WAREHOUSE",
-            city: input.hq?.split(",")[0]?.trim() || "Mumbai",
-            state: input.hq?.split(",")[1]?.trim() || "Maharashtra",
-            country: "India",
-            status: "ACTIVE"
-          }
-        });
+          const warehouseLocation = await tx.location.create({
+            data: {
+              id: warehouseLocationId,
+              tenantId,
+              name: wh.name,
+              code: wh.code,
+              locationType: "WAREHOUSE",
+              city: input.hq?.split(",")[0]?.trim() || "Mumbai",
+              state: input.hq?.split(",")[1]?.trim() || "Maharashtra",
+              country: "India",
+              status: "ACTIVE"
+            }
+          });
 
-        await tx.warehouse.create({
-          data: {
-            id: createId("wh"),
-            tenantId,
-            locationId: warehouseLocation.id,
-            warehouseCode: warehouseLocation.code
-          }
-        });
+          await tx.warehouse.create({
+            data: {
+              id: createId("wh"),
+              tenantId,
+              locationId: warehouseLocation.id,
+              warehouseCode: warehouseLocation.code
+            }
+          });
+        }
       }
 
       // 6. Create Stores
@@ -162,8 +169,8 @@ export class TenantService {
                 store.city === "Bengaluru"
                   ? "Karnataka"
                   : store.city === "Delhi"
-                  ? "Delhi"
-                  : "Maharashtra",
+                    ? "Delhi"
+                    : "Maharashtra",
               country: "India",
               status: "ACTIVE"
             }
@@ -174,7 +181,8 @@ export class TenantService {
               id: createId("st"),
               tenantId,
               locationId: storeLocation.id,
-              storeCode: storeLocation.code
+              storeCode: storeLocation.code,
+              capacity: store.capacity ?? 0
             }
           });
         }

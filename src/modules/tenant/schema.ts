@@ -8,19 +8,21 @@ export const onboardingSchema = z.object({
   hq: z.string().optional(),
   currency: z.string().optional(),
   timezone: z.string().optional(),
-  warehouse: z.object({
+  warehouses: z.array(z.object({
     name: z.string(),
     code: z.string(),
     address: z.string().optional(),
     capacity: z.string().optional(),
     email: z.string().optional(),
     phone: z.string().optional(),
-  }).optional(),
+  })).optional(),
   stores: z.array(z.object({
     name: z.string(),
     code: z.string(),
-    city: z.string()
+    city: z.string(),
+    capacity: z.number().optional()
   })).optional(),
+  businessType: z.string().optional(),
   aiPreference: z.string().optional(),
   adminUser: z.object({
     fullName: z.string().min(2, "Full name must have at least 2 characters"),

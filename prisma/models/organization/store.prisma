@@ -4,6 +4,7 @@ model Store {
   locationId        String   @unique
   storeManagerUserId String?
   storeCode         String   @db.VarChar(80)
+  capacity          Int?     @default(0)
   openingHours      Json?
   posEnabled        Boolean  @default(true)
   defaultTaxCategoryId String?
