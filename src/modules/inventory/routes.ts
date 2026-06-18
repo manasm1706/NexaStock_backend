@@ -1,7 +1,7 @@
 import type { Router } from "../../framework/router";
 import { InventoryController } from "./controller";
 import { validateBody } from "../../middleware/validation.middleware";
-import { adjustInventorySchema } from "./schema";
+import { adjustInventorySchema, importInventorySchema } from "./schema";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { resolveTenant } from "../../middleware/tenant.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
@@ -16,5 +16,11 @@ export function registerInventoryRoutes(router: Router): void {
     "/api/v1/inventory/adjustments",
     [requireAuth, resolveTenant, requirePermission("inventoryAdjustments"), validateBody(adjustInventorySchema)],
     controller.adjust
+  );
+  router.route(
+    "POST",
+    "/api/v1/inventory/import",
+    [requireAuth, resolveTenant, requirePermission("inventoryAdjustments"), validateBody(importInventorySchema)],
+    controller.import
   );
 }

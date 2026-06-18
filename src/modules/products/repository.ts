@@ -10,7 +10,7 @@ export class ProductsRepository {
 
     return tx.product.findMany({
       where: whereClause,
-      include: { category: true, supplierLinks: true }
+      include: { category: true, supplierLinks: true, taxCategory: true }
     });
   }
 

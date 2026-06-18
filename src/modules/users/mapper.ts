@@ -9,6 +9,8 @@ export function toUserItemDTO(user: any): UserItemDTO {
     email: user.email,
     role: user.role.code as Role,
     roleLabel: roleLabels[user.role.code as Role] || user.role.name,
-    status: user.status.toLowerCase()
+    status: user.status.toLowerCase(),
+    lastLoginAt: user.lastLoginAt ? user.lastLoginAt.toISOString() : null,
+    metadata: user.metadata || null
   };
 }

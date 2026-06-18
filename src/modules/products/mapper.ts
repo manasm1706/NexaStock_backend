@@ -22,7 +22,7 @@ export function toProductDTO(prod: any, purchasePrice?: number, sellingPrice?: n
     mrp: finalMrp,
     reorderLevel: prod.reorderLevel,
     reorderQuantity: prod.reorderQuantity,
-    taxRate: 12,
+    taxRate: prod.taxCategory ? Number(prod.taxCategory.rate) : 12,
     supplierIds: prod.supplierLinks?.map((s: any) => s.supplierId) || [],
     isActive: prod.isActive,
     industry: prod.industry,

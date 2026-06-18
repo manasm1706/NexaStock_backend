@@ -16,4 +16,9 @@ export class InventoryController {
     const actorId = context.actorId!;
     return this.service.adjustInventory(context.body as any, actorId, context.tenantId);
   };
+
+  import = async (context: RequestContext) => {
+    const actorId = context.actorId!;
+    return this.service.bulkImportInventory(context.body as any, actorId, context.tenantId);
+  };
 }

@@ -7,4 +7,6 @@ export function registerAnalyticsRoutes(router: Router): void {
   const controller = new AnalyticsController();
 
   router.route("GET", "/api/v1/analytics/dashboard", [requireAuth, resolveTenant], controller.dashboard);
+  router.route("GET", "/api/v1/analytics/export", [requireAuth, resolveTenant], controller.exportReport);
 }
+

@@ -40,6 +40,7 @@ export class POSRepository {
     discountTotal: number;
     grandTotal: number;
     createdByUserId: string;
+    metadata?: any;
   }, tx: PrismaInstance = prisma) {
     return tx.sale.create({
       data: {
@@ -53,7 +54,8 @@ export class POSRepository {
         taxTotal: data.taxTotal,
         discountTotal: data.discountTotal,
         grandTotal: data.grandTotal,
-        createdByUserId: data.createdByUserId
+        createdByUserId: data.createdByUserId,
+        metadata: data.metadata || null
       }
     });
   }
@@ -89,16 +91,21 @@ export class POSRepository {
 
   async decrementInventory(productId: string, locationId: string, quantity: number, tenantId: string, tx: PrismaInstance = prisma) {
     const inv = await tx.inventory.findFirst({
-      where: { tenantId, productId, locationId }
+      where: { tenantId, productId, locationId },
+      include: { product: true }
     });
-    if (inv) {
-      await tx.inventory.update({
-        where: { id: inv.id, tenantId },
-        data: {
-          qtyOnHand: { decrement: quantity }
-        }
-      });
+    if (!inv) {
+      throw new Error(`Product inventory balance not found at selected location.`);
     }
+    if (inv.qtyOnHand < quantity) {
+      throw new Error(`Insufficient stock for product "${inv.product.name}" (${inv.product.sku}). Available: ${inv.qtyOnHand}, Requested: ${quantity}.`);
+    }
+    await tx.inventory.update({
+      where: { id: inv.id, tenantId },
+      data: {
+        qtyOnHand: { decrement: quantity }
+      }
+    });
   }
 
   async insertInventoryMovement(productId: string, locationId: string, quantity: number, notes: string, tenantId: string, tx: PrismaInstance = prisma) {
@@ -143,6 +150,26 @@ export class POSRepository {
         taxTotal: data.taxTotal,
         grandTotal: data.grandTotal,
         metadata: data.metadata
+      }
+    });
+  }
+
+  async createPayment(data: {
+    tenantId: string;
+    saleId: string;
+    method: "CASH" | "CARD" | "UPI" | "WALLET";
+    amount: number;
+  }, tx: PrismaInstance = prisma) {
+    return tx.payment.create({
+      data: {
+        id: createId("pay"),
+        tenantId: data.tenantId,
+        saleId: data.saleId,
+        paymentNumber: createId("PAY"),
+        method: data.method,
+        status: "CAPTURED",
+        amount: data.amount,
+        paidAt: new Date()
       }
     });
   }

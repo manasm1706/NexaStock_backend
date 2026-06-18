@@ -46,5 +46,50 @@ export const permissionMatrix = {
     store_manager: false,
     cashier: false,
     supplier: false
+  },
+  userManagement: {
+    super_admin: true,
+    business_owner: true,
+    operations_manager: true,
+    warehouse_manager: false,
+    store_manager: false,
+    cashier: false,
+    supplier: false
+  },
+  settingsManage: {
+    super_admin: true,
+    business_owner: true,
+    operations_manager: false,
+    warehouse_manager: false,
+    store_manager: false,
+    cashier: false,
+    supplier: false
+  },
+  analyticsRead: {
+    super_admin: true,
+    business_owner: true,
+    operations_manager: true,
+    warehouse_manager: true,
+    store_manager: true,
+    cashier: false,
+    supplier: false
+  },
+  aiRead: {
+    super_admin: true,
+    business_owner: true,
+    operations_manager: true,
+    warehouse_manager: true,
+    store_manager: true,
+    cashier: false,
+    supplier: false
+  },
+  auditRead: {
+    super_admin: true,
+    business_owner: true,
+    operations_manager: true,
+    warehouse_manager: false,
+    store_manager: false,
+    cashier: false,
+    supplier: false
   }
 } as const;

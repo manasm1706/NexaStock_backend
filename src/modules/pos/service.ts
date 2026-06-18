@@ -3,6 +3,10 @@ import { toPOSInvoiceDTO } from "./mapper";
 import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 import type { CreatePOSInvoiceInput } from "./schema";
+import { AnalyticsService } from "../analytics/service";
+import { AIService } from "../ai/service";
+
+
 
 export class POSService {
   private readonly repository = new POSRepository();
@@ -21,7 +25,15 @@ export class POSService {
 
     const subtotal = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice, 0);
     const discountTotal = lines.reduce((sum, line) => sum + (line.discount || 0), 0);
-    const taxTotal = lines.reduce((sum, line) => sum + line.quantity * line.unitPrice * ((line.taxRate || 0) / 100), 0);
+    
+    // Calculate tax on net price per line item (subtotal - discount)
+    const taxTotal = lines.reduce((sum, line) => {
+      const lineSubtotal = line.quantity * line.unitPrice;
+      const lineDiscount = line.discount || 0;
+      const netAmount = Math.max(0, lineSubtotal - lineDiscount);
+      return sum + netAmount * ((line.taxRate || 0) / 100);
+    }, 0);
+    
     const total = subtotal - discountTotal + taxTotal;
 
     const invoice = await prisma.$transaction(async (tx) => {
@@ -40,7 +52,12 @@ export class POSService {
         taxTotal,
         discountTotal,
         grandTotal: total,
-        createdByUserId: actorId
+        createdByUserId: actorId,
+        metadata: {
+          customerName,
+          customerPhone,
+          paymentMode: paymentMode.toUpperCase()
+        }
       }, tx);
 
       // 3. Create Sale Items, Deduct Inventory, Record Movements
@@ -48,8 +65,10 @@ export class POSService {
       for (const line of lines) {
         const taxRate = line.taxRate || 0;
         const discountAmount = line.discount || 0;
-        const taxAmount = (line.quantity * line.unitPrice) * (taxRate / 100);
-        const lineTotal = (line.quantity * line.unitPrice) - discountAmount + taxAmount;
+        const lineSubtotal = line.quantity * line.unitPrice;
+        const netAmount = Math.max(0, lineSubtotal - discountAmount);
+        const taxAmount = netAmount * (taxRate / 100);
+        const lineTotal = lineSubtotal - discountAmount + taxAmount;
 
         await this.repository.createSaleItem({
           tenantId,
@@ -64,14 +83,25 @@ export class POSService {
           lineTotal
         }, tx);
 
-        // Deduct inventory
+        // Deduct inventory (with hard stock check validation inside decrementInventory)
         await this.repository.decrementInventory(line.productId, locationId, line.quantity, tenantId, tx);
 
         // Record movement log
         await this.repository.insertInventoryMovement(line.productId, locationId, line.quantity, `POS Sale ${sale.id}`, tenantId, tx);
       }
 
-      // 4. Create Invoice
+      // 4. Create Payment record to map payment method
+      const allowedPaymentModes = ["CASH", "CARD", "UPI", "WALLET"] as const;
+      const modeUpper = paymentMode.toUpperCase() as typeof allowedPaymentModes[number];
+      const validMode = allowedPaymentModes.includes(modeUpper) ? modeUpper : "CASH";
+      await this.repository.createPayment({
+        tenantId,
+        saleId: sale.id,
+        method: validMode,
+        amount: total
+      }, tx);
+
+      // 5. Create Invoice
       const invoiceCount = await this.repository.countInvoices(tenantId, tx);
       const invoiceNum = `INV-${String(invoiceCount + 1).padStart(6, "0")}`;
 
@@ -91,19 +121,46 @@ export class POSService {
       }, tx);
     });
 
-    // Write Audit Log
-    await prisma.auditLog.create({
-      data: {
-        id: createId("audit"),
-        tenantId,
-        actorUserId: actorId,
-        module: "pos",
-        action: "invoice_created",
-        summary: `Invoice ${invoice.invoiceNumber} posted at location ${locationId} with total ${total}`,
-        entityType: "invoice",
-        severity: "INFO"
-      }
-    });
+    // Clear analytics cache for this tenant since a sale completed
+    AnalyticsService.clearCache(tenantId);
+    AIService.clearCache(tenantId);
+
+
+
+
+    // Write Audit Log with cashier and location details
+    try {
+      const [cashier, location] = await Promise.all([
+        prisma.user.findUnique({ where: { id: actorId } }),
+        prisma.location.findUnique({ where: { id: locationId } })
+      ]);
+      const cashierName = cashier?.fullName || "POS Cashier";
+      const locationName = location?.name || locationId;
+
+      await prisma.auditLog.create({
+        data: {
+          id: createId("audit"),
+          tenantId,
+          actorUserId: actorId,
+          module: "pos",
+          action: "invoice_created",
+          summary: `POS checkout completed by cashier ${cashierName} at store ${locationName}. Invoice: ${invoice.invoiceNumber}. Mode: ${paymentMode.toUpperCase()}. Total: $${total.toFixed(2)}.`,
+          entityType: "invoice",
+          severity: "INFO",
+          afterData: {
+            cashierName,
+            locationName,
+            invoiceNumber: invoice.invoiceNumber,
+            grandTotal: total,
+            paymentMode: paymentMode.toUpperCase(),
+            customerName,
+            customerPhone
+          }
+        }
+      });
+    } catch (auditError) {
+      console.error("Failed to write POS audit log:", auditError);
+    }
 
     return toPOSInvoiceDTO(invoice, locationId, lines);
   }

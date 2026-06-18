@@ -1,17 +1,33 @@
 import { createId, hashPassword } from "../../lib/crypto";
 import { toTenantDTO } from "./mapper";
-import { NotFoundError } from "../../lib/errors";
+import { NotFoundError, ValidationError } from "../../lib/errors";
 import { prisma } from "../../lib/db";
 import type { OnboardingInput } from "./schema";
 import { generateAccessToken } from "../../lib/jwt";
 import { toUserDTO } from "../auth/mapper";
 
+// Sanitize payload for logging (strip passwords)
+function sanitizeForLog(input: any): any {
+  const clone = JSON.parse(JSON.stringify(input));
+  if (clone.adminUser?.password) clone.adminUser.password = "***REDACTED***";
+  return clone;
+}
+
 export class TenantService {
   async startOnboarding(input: OnboardingInput) {
     const tenantId = createId("tenant");
+    const requestTimestamp = new Date().toISOString();
+    console.log(`[Onboarding] START tenantId=${tenantId} org="${input.organizationName}" at=${requestTimestamp}`);
 
     // Transaction-safe onboarding setup
     const { tenant, adminUser } = await prisma.$transaction(async (tx) => {
+      // 0. Verify email doesn't exist globally
+      const existingUser = await tx.user.findFirst({
+        where: { email: { equals: input.adminUser.email, mode: "insensitive" } }
+      });
+      if (existingUser) {
+        throw new ValidationError("This email address is already registered.");
+      }
 
       // 1. Create Tenant
       const created = await tx.tenant.create({
@@ -122,6 +138,79 @@ export class TenantService {
         }
       });
 
+      // Helper to process location onboarding inventory
+      const processInitialInventory = async (tx: any, locationId: string, inventory: any[]) => {
+        for (const item of inventory) {
+          const categorySlug = item.category.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+          let category = await tx.productCategory.findFirst({
+            where: { slug: categorySlug, tenantId }
+          });
+          if (!category) {
+            category = await tx.productCategory.create({
+              data: {
+                id: createId("cat"),
+                tenantId,
+                code: categorySlug,
+                name: item.category,
+                slug: categorySlug
+              }
+            });
+          }
+
+          let product = await tx.product.findFirst({
+            where: { sku: { equals: item.sku, mode: "insensitive" }, tenantId }
+          });
+          if (!product) {
+            product = await tx.product.create({
+              data: {
+                id: createId("prod"),
+                tenantId,
+                categoryId: category.id,
+                sku: item.sku,
+                name: item.name,
+                unitOfMeasure: item.unit,
+                reorderLevel: 10,
+                reorderQuantity: 50,
+                industry: input.businessType || input.industry || "general",
+                status: "ACTIVE",
+                metadata: {
+                  purchasePrice: item.purchasePrice,
+                  sellingPrice: item.sellingPrice
+                }
+              }
+            });
+          }
+
+          await tx.inventory.create({
+            data: {
+              id: createId("inv"),
+              tenantId,
+              locationId,
+              productId: product.id,
+              qtyOnHand: item.quantity,
+              qtyReserved: 0,
+              reorderLevel: 10,
+              reorderQuantity: 50
+            }
+          });
+
+          await tx.inventoryMovement.create({
+            data: {
+              id: createId("move"),
+              tenantId,
+              productId: product.id,
+              locationId,
+              quantity: item.quantity,
+              movementType: "INWARD",
+              movementNumber: `ONB-${createId("mv")}`,
+              sourceType: "ONBOARDING",
+              notes: "Initial Onboarding Import",
+              occurredAt: new Date()
+            }
+          });
+        }
+      };
+
       // 5. Create Warehouses
       if (input.warehouses?.length) {
         for (const wh of input.warehouses) {
@@ -149,6 +238,10 @@ export class TenantService {
               warehouseCode: warehouseLocation.code
             }
           });
+
+          if (wh.inventory && wh.inventory.length > 0) {
+            await processInitialInventory(tx, warehouseLocation.id, wh.inventory);
+          }
         }
       }
 
@@ -181,10 +274,13 @@ export class TenantService {
               id: createId("st"),
               tenantId,
               locationId: storeLocation.id,
-              storeCode: storeLocation.code,
-              capacity: store.capacity ?? 0
+              storeCode: storeLocation.code
             }
           });
+
+          if (store.inventory && store.inventory.length > 0) {
+            await processInitialInventory(tx, storeLocation.id, store.inventory);
+          }
         }
       }
 
@@ -192,6 +288,20 @@ export class TenantService {
         tenant: created,
         adminUser: admin
       };
+    }).catch((error: any) => {
+      // Production-grade onboarding error logging
+      console.error("[Onboarding] FAILED", {
+        tenantId,
+        timestamp: requestTimestamp,
+        organization: input.organizationName,
+        adminEmail: input.adminUser.email,
+        code: error?.code,
+        meta: error?.meta,
+        message: error?.message,
+        stack: error?.stack,
+        payload: sanitizeForLog(input)
+      });
+      throw error;
     });
 
     // Generate Access Token
@@ -260,5 +370,46 @@ export class TenantService {
       locations: locationsCount,
       products: productsCount
     };
+  }
+
+  async updateTenant(
+    tenantId: string,
+    data: { name: string; legalName: string; timezone: string; primaryCurrency: string },
+    actorUserId: string
+  ) {
+    const updated = await prisma.tenant.update({
+      where: { id: tenantId },
+      data: {
+        name: data.name,
+        legalName: data.legalName,
+        timezone: data.timezone,
+        primaryCurrency: data.primaryCurrency
+      }
+    });
+
+    // Also update TenantSettings
+    await prisma.tenantSettings.updateMany({
+      where: { tenantId },
+      data: {
+        timezone: data.timezone,
+        currencyCode: data.primaryCurrency
+      }
+    });
+
+    // Write Audit Log
+    await prisma.auditLog.create({
+      data: {
+        id: createId("audit"),
+        tenantId,
+        actorUserId,
+        module: "tenant",
+        action: "organization_updated",
+        summary: `Updated organization settings (Name: ${data.name}, Legal: ${data.legalName})`,
+        entityType: "tenant",
+        severity: "INFO"
+      }
+    });
+
+    return toTenantDTO(updated);
   }
 }

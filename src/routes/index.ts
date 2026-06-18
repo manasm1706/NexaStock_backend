@@ -18,6 +18,7 @@ import { registerAnalyticsRoutes } from "../modules/analytics/routes";
 import { registerAIRoutes } from "../modules/ai/routes";
 import { registerComplianceRoutes } from "../modules/compliance/routes";
 import { registerProcurementRoutes } from "../modules/procurement/routes";
+import { registerSettingsRoutes } from "../modules/settings/routes";
 
 import { LocationsRepository } from "../modules/locations/repository";
 
@@ -68,4 +69,5 @@ export function registerRoutes(router: Router, env: AppEnv): void {
   registerAIRoutes(router);
   registerComplianceRoutes(router);
   registerProcurementRoutes(router);
+  registerSettingsRoutes(router);
 }

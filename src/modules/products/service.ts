@@ -79,7 +79,7 @@ export class ProductsService {
     // Fetch fresh with relations
     const freshProduct = await prisma.product.findUnique({
       where: { id: result.id },
-      include: { category: true, supplierLinks: true }
+      include: { category: true, supplierLinks: true, taxCategory: true }
     });
 
     return toProductDTO(freshProduct, purchasePrice, sellingPrice);

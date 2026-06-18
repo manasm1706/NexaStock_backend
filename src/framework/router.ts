@@ -146,6 +146,59 @@ export class Router {
       return;
     }
 
+    // Prisma-specific error classification
+    const prismaCode = (error as any)?.code;
+    const prismaMeta = (error as any)?.meta;
+
+    if (prismaCode === "P2002") {
+      // Unique constraint violation
+      const target = prismaMeta?.target;
+      let message = "A record with this data already exists.";
+      if (Array.isArray(target)) {
+        if (target.includes("email")) message = "This email address is already registered.";
+        else if (target.includes("slug")) message = "An organization with this name already exists.";
+        else if (target.includes("storeCode")) message = "A store with this code already exists.";
+        else if (target.includes("warehouseCode")) message = "A warehouse with this code already exists.";
+        else if (target.includes("sku")) message = "A product with this SKU already exists.";
+        else message = `Duplicate value detected for: ${target.join(", ")}`;
+      }
+      sendJson(response, 409, {
+        success: false,
+        error: {
+          code: "DUPLICATE_RECORD",
+          message,
+          requestId: context.requestId
+        }
+      });
+      return;
+    }
+
+    if (prismaCode === "P2022" || prismaCode === "P2025") {
+      console.error("[Prisma Schema Error]", { code: prismaCode, meta: prismaMeta });
+      sendJson(response, 500, {
+        success: false,
+        error: {
+          code: "DATABASE_ERROR",
+          message: `Database error: ${(error as Error).message}`,
+          requestId: context.requestId
+        }
+      });
+      return;
+    }
+
+    if (prismaCode && prismaCode.startsWith("P")) {
+      console.error("[Prisma Error]", { code: prismaCode, meta: prismaMeta, message: (error as Error).message });
+      sendJson(response, 500, {
+        success: false,
+        error: {
+          code: "DATABASE_ERROR",
+          message: "We couldn't complete your request due to a database issue. Please try again in a few moments.",
+          requestId: context.requestId
+        }
+      });
+      return;
+    }
+
     const message = error instanceof Error ? error.message : "Unexpected error";
     sendJson(response, 500, {
       success: false,

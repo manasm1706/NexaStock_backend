@@ -7,4 +7,6 @@ export function registerAIRoutes(router: Router): void {
   const controller = new AIController();
 
   router.route("GET", "/api/v1/ai/insights", [requireAuth, resolveTenant], controller.insights);
+  router.route("POST", "/api/v1/ai/query", [requireAuth, resolveTenant], controller.query);
 }
+

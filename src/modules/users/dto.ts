@@ -7,4 +7,6 @@ export interface UserItemDTO {
   role: Role;
   roleLabel: string;
   status: string;
+  lastLoginAt?: string | null;
+  metadata?: any;
 }

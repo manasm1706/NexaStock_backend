@@ -7,4 +7,15 @@ export class AIController {
   insights = async (context: RequestContext) => {
     return this.service.getInsights(context.tenantId);
   };
+
+  query = async (context: RequestContext) => {
+    const { query: queryStr } = (context.body as { query?: string }) || {};
+    if (!queryStr) {
+      return {
+        answer: "Please ask a question to query NexaStock business intelligence.",
+        queryType: "unsupported"
+      };
+    }
+    return this.service.executeNaturalQuery(queryStr, context.tenantId);
+  };
 }

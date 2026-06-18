@@ -97,4 +97,10 @@ export class TenantController {
       permissions: permissionMatrix
     };
   };
+
+  update = async (context: RequestContext) => {
+    const actorUserId = context.actorId!;
+    const body = context.body as { name: string; legalName: string; timezone: string; primaryCurrency: string };
+    return this.service.updateTenant(context.tenantId, body, actorUserId);
+  };
 }

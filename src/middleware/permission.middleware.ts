@@ -19,7 +19,13 @@ export function requirePermission(permissionCode: PermissionKey): Middleware {
       productManagement: "PRODUCT_MANAGEMENT",
       inventoryAdjustments: "INVENTORY_WRITE",
       posSales: "POS_SALES",
-      dispatchOperations: "INVENTORY_WRITE"
+      dispatchOperations: "INVENTORY_WRITE",
+      userManagement: "USER_MANAGEMENT",
+      settingsManage: "SETTINGS_MANAGE",
+      analyticsRead: "ANALYTICS_READ",
+      aiRead: "AI_READ",
+      auditRead: "AUDIT_READ",
+      tenantAdmin: "TENANT_ADMIN"
     };
     const dbPermissionCode = permissionKeyMap[permissionCode] || permissionCode.toUpperCase();
 
