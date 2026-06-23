@@ -105,17 +105,23 @@ export class Router {
 
     try {
       context.body = await readBody(request);
+
+      console.log(`[Request] ${method} ${requestPath} | requestId: ${context.requestId} | tenantId: ${context.tenantId} | actorId: ${context.actorId || "none"}`);
+
       const result = await tenantLocalStorage.run(context, () => matchedRoute.handler(context));
 
       if (response.writableEnded) {
+        console.log(`[Response Completed Externally] ${method} ${requestPath} | requestId: ${context.requestId} | status: ${response.statusCode}`);
         return;
       }
 
       if (typeof result === "undefined") {
+        console.log(`[Response Success] ${method} ${requestPath} | requestId: ${context.requestId} | status: 204`);
         sendJson(response, 204, null);
         return;
       }
 
+      console.log(`[Response Success] ${method} ${requestPath} | requestId: ${context.requestId} | status: 200`);
       sendJson(response, 200, {
         success: true,
         data: result,
@@ -130,8 +136,16 @@ export class Router {
   }
 
   private handleError(error: unknown, context: RequestContext): void {
-    console.error("[Router Error]", error);
     const response = context.response;
+    const isAppError = error instanceof AppError;
+    const statusCode = isAppError ? error.statusCode : 500;
+    const errorCode = isAppError ? error.code : "INTERNAL_SERVER_ERROR";
+    const errorMessage = error instanceof Error ? error.message : "Unexpected error";
+
+    console.error(`[Response Error] ${context.request.method} ${context.request.url} | status: ${statusCode} | code: ${errorCode} | message: ${errorMessage} | requestId: ${context.requestId} | actorId: ${context.actorId || "none"}`);
+    if (error instanceof Error && error.stack) {
+      console.error(error.stack);
+    }
 
     if (error instanceof AppError) {
       sendJson(response, error.statusCode, {

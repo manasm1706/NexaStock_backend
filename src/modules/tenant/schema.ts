@@ -38,8 +38,10 @@ export const onboardingSchema = z.object({
   adminUser: z.object({
     fullName: z.string().min(2, "Full name must have at least 2 characters"),
     email: z.string().email("Invalid email format"),
-    password: z.string().min(8, "Password must have at least 8 characters").max(128, "Password must have at most 128 characters")
-  })
+    password: z.string().min(8, "Password must have at least 8 characters").max(128, "Password must have at most 128 characters").optional(),
+    googleId: z.string().optional()
+  }),
+  selectedFeatures: z.array(z.string()).optional()
 });
 
 export type OnboardingInput = z.infer<typeof onboardingSchema>;

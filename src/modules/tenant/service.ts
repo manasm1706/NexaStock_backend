@@ -119,8 +119,59 @@ export class TenantService {
         }
       });
 
+      // Build workspaceSettings based on chosen features
+      const features = input.selectedFeatures || ["inventory", "pos", "analytics", "ai", "stores"];
+      
+      const sidebarOrder = ["dashboard"];
+      if (features.includes("inventory")) sidebarOrder.push("inventory");
+      if (features.includes("ai")) sidebarOrder.push("ai");
+      if (features.includes("stores")) sidebarOrder.push("stores");
+      if (features.includes("pos")) sidebarOrder.push("pos");
+      if (features.includes("analytics")) sidebarOrder.push("analytics");
+      sidebarOrder.push("settings");
+
+      const widgets = [];
+      if (features.includes("pos") || features.includes("analytics")) {
+        widgets.push({ id: "revenue", size: "sm" as const, visible: true });
+      }
+      if (features.includes("stores")) {
+        widgets.push({ id: "stores", size: "sm" as const, visible: true });
+      }
+      if (features.includes("inventory")) {
+        widgets.push({ id: "inventoryValue", size: "sm" as const, visible: true });
+        widgets.push({ id: "lowStock", size: "sm" as const, visible: true });
+      }
+      if (features.includes("analytics") || features.includes("ai")) {
+        widgets.push({ id: "forecastChart", size: "md" as const, visible: true });
+      }
+      if (features.includes("ai")) {
+        widgets.push({ id: "aiInsights", size: "sm" as const, visible: true });
+      }
+      if (features.includes("pos") || features.includes("inventory") || features.includes("analytics")) {
+        widgets.push({ id: "topProducts", size: "md" as const, visible: true });
+      }
+      widgets.push({ id: "alerts", size: "sm" as const, visible: true });
+
+      const workspaceSettings = {
+        sidebarOrder,
+        sidebarFavorites: [],
+        sidebarHidden: [],
+        dashboardLayouts: [
+          { name: "Default Layout", widgets }
+        ],
+        activeLayoutName: "Default Layout"
+      };
+
       // 4. Create Admin User
       const adminUserId = createId("user");
+      const password = input.adminUser.password || createId("pw");
+
+      const userMetadata: any = {
+        workspaceSettings
+      };
+      if (input.adminUser.googleId) {
+        userMetadata.googleId = input.adminUser.googleId;
+      }
 
       const admin = await tx.user.create({
         data: {
@@ -129,9 +180,10 @@ export class TenantService {
           roleId: ownerRole.id,
           email: input.adminUser.email,
           fullName: input.adminUser.fullName,
-          passwordHash: hashPassword(input.adminUser.password),
+          passwordHash: hashPassword(password),
           status: "ACTIVE",
-          userScope: "INTERNAL"
+          userScope: "INTERNAL",
+          metadata: userMetadata
         },
         include: {
           role: true
@@ -311,6 +363,29 @@ export class TenantService {
       tenantId
     });
 
+    const refreshToken = createId("ref");
+    const sessionId = createId("sess");
+
+    // Track active UserSession
+    try {
+      await prisma.userSession.create({
+        data: {
+          id: sessionId,
+          tenantId,
+          userId: adminUser.id,
+          sessionTokenHash: refreshToken,
+          deviceName: "Web Client",
+          ipAddress: "127.0.0.1",
+          userAgent: "Web",
+          isActive: true,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          lastSeenAt: new Date()
+        }
+      });
+    } catch (sessionErr) {
+      console.error("Failed to track session log on onboarding launch:", sessionErr);
+    }
+
     // Audit Log
     await prisma.auditLog.create({
       data: {
@@ -326,6 +401,7 @@ export class TenantService {
 
     return {
       token,
+      refreshToken,
       user: toUserDTO(adminUser),
       tenant: toTenantDTO(tenant, input.plan)
     };

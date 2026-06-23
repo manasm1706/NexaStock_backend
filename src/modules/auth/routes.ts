@@ -10,6 +10,8 @@ export function registerAuthRoutes(router: Router): void {
   const controller = new AuthController();
 
   router.route("POST", "/api/v1/auth/login", [validateBody(loginSchema)], controller.login);
+  router.route("POST", "/api/v1/auth/google", [], controller.googleLogin);
+  router.route("POST", "/api/v1/auth/refresh", [], controller.refresh);
   router.route("POST", "/api/v1/auth/register", [validateBody(onboardingSchema)], controller.register);
   router.route("POST", "/api/v1/auth/logout", [requireAuth], controller.logout);
   router.route("GET", "/api/v1/auth/me", [requireAuth], controller.profile);

@@ -12,6 +12,7 @@ export interface UserDTO {
 
 export interface LoginResponseDTO {
   token: string;
+  refreshToken?: string;
   user: UserDTO;
 }
 

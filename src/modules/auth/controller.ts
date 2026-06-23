@@ -20,6 +20,22 @@ export class AuthController {
     return this.service.login(body, tenantId, userAgent, ipAddress);
   };
 
+  googleLogin = async (context: RequestContext) => {
+    const body = (context.body as { credential?: string }) || {};
+    const userAgent = context.request.headers["user-agent"] || "Unknown Device";
+    const ipAddress = (context.request.headers["x-forwarded-for"] as string) || context.request.socket.remoteAddress || "127.0.0.1";
+    
+    return this.service.googleLogin(body.credential || "", userAgent, ipAddress);
+  };
+
+  refresh = async (context: RequestContext) => {
+    const body = (context.body as { refreshToken?: string }) || {};
+    const userAgent = context.request.headers["user-agent"] || "Unknown Device";
+    const ipAddress = (context.request.headers["x-forwarded-for"] as string) || context.request.socket.remoteAddress || "127.0.0.1";
+    
+    return this.service.refreshSession(body.refreshToken || "", userAgent, ipAddress);
+  };
+
   register = async (context: RequestContext) => {
     return this.tenantService.startOnboarding(context.body as any);
   };

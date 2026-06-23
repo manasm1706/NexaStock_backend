@@ -8,6 +8,7 @@ import { toUserDTO } from "./mapper";
 import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 import { InvitationService } from "../users/invitation.service";
+import { OAuth2Client } from "google-auth-library";
 
 function parseDeviceName(userAgent: string): string {
   if (userAgent.includes("iPhone")) return "iPhone";
@@ -48,14 +49,17 @@ export class AuthService {
       tenantId: user.tenantId
     });
 
+    const refreshToken = createId("ref");
+    const sessionId = createId("sess");
+
     // Write UserSession record
     try {
       await prisma.userSession.create({
         data: {
-          id: createId("sess"),
+          id: sessionId,
           tenantId: user.tenantId,
           userId: user.id,
-          sessionTokenHash: createId("hash"),
+          sessionTokenHash: refreshToken,
           deviceName: parseDeviceName(userAgent),
           ipAddress,
           userAgent,
@@ -90,6 +94,7 @@ export class AuthService {
 
     return {
       token,
+      refreshToken,
       user: toUserDTO(user)
     };
   }
@@ -214,14 +219,17 @@ export class AuthService {
       tenantId: user.tenantId
     });
 
+    const refreshToken = createId("ref");
+    const sessionId = createId("sess");
+
     // Track active UserSession
     try {
       await prisma.userSession.create({
         data: {
-          id: createId("sess"),
+          id: sessionId,
           tenantId: user.tenantId,
           userId: user.id,
-          sessionTokenHash: createId("hash"),
+          sessionTokenHash: refreshToken,
           deviceName: parseDeviceName(userAgent),
           ipAddress,
           userAgent,
@@ -241,7 +249,172 @@ export class AuthService {
 
     return {
       token: jwtToken,
+      refreshToken,
       user: toUserDTO(user)
+    };
+  }
+
+  async googleLogin(
+    credential: string,
+    userAgent: string,
+    ipAddress: string
+  ): Promise<LoginResponseDTO> {
+    if (!credential) {
+      throw new ValidationError("Google credential token is required.");
+    }
+
+    const client: any = new OAuth2Client(process.env.GOOGLE_CLIENT_ID);
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: credential,
+        audience: process.env.GOOGLE_CLIENT_ID || "",
+      });
+      payload = ticket.getPayload();
+    } catch (err: any) {
+      throw new ForbiddenError("Failed to verify Google authentication: " + err.message);
+    }
+
+    if (!payload || !payload.email) {
+      throw new ForbiddenError("Google authentication did not return a valid email.");
+    }
+
+    const email = payload.email;
+    const fullName = payload.name || "Google User";
+    const googleId = payload.sub; // Google User ID
+
+    // Find user globally
+    let user = await prisma.user.findFirst({
+      where: { email: { equals: email, mode: "insensitive" } },
+      include: { role: true }
+    });
+
+    if (user) {
+      if (user.status === "DISABLED") {
+        throw new ForbiddenError("Your account has been deactivated. Please contact your organization owner.");
+      }
+
+      // Link Google ID if not already linked (preserve existing account and avoid duplicates)
+      const metadata = (user.metadata as any) || {};
+      if (metadata.googleId !== googleId) {
+        await prisma.user.update({
+          where: { id: user.id },
+          data: {
+            metadata: {
+              ...metadata,
+              googleId
+            }
+          }
+        });
+      }
+    } else {
+      // User does not exist, so we avoid creating a temporary user.
+      // Return a special payload so frontend can complete onboarding before creation.
+      return {
+        isNewUser: true,
+        email,
+        fullName,
+        googleId
+      } as any;
+    }
+
+    // Log the user in and return standard tokens
+    const token = generateAccessToken({
+      sub: user.id,
+      role: user.role.code,
+      tenantId: user.tenantId
+    });
+
+    const refreshToken = createId("ref");
+    const sessionId = createId("sess");
+
+    try {
+      await prisma.userSession.create({
+        data: {
+          id: sessionId,
+          tenantId: user.tenantId,
+          userId: user.id,
+          sessionTokenHash: refreshToken,
+          deviceName: parseDeviceName(userAgent),
+          ipAddress,
+          userAgent,
+          isActive: true,
+          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+          lastSeenAt: new Date()
+        }
+      });
+
+      await prisma.user.update({
+        where: { id: user.id },
+        data: { lastLoginAt: new Date() }
+      });
+
+      // Write Audit Log
+      await prisma.auditLog.create({
+        data: {
+          id: createId("audit"),
+          tenantId: user.tenantId,
+          actorUserId: user.id,
+          module: "auth",
+          action: "login_google",
+          summary: `User ${user.fullName} logged in successfully via Google`,
+          entityType: "user",
+          severity: "INFO"
+        }
+      });
+    } catch (sessionErr) {
+      console.error("Failed to track session log or last login for Google login:", sessionErr);
+    }
+
+    return {
+      token,
+      refreshToken,
+      user: toUserDTO(user)
+    };
+  }
+
+  async refreshSession(
+    refreshToken: string,
+    userAgent: string,
+    ipAddress: string
+  ): Promise<{ token: string; refreshToken: string }> {
+    if (!refreshToken) {
+      throw new ValidationError("Refresh token is required.");
+    }
+
+    const session = await prisma.userSession.findFirst({
+      where: {
+        sessionTokenHash: refreshToken,
+        isActive: true,
+        expiresAt: { gt: new Date() }
+      },
+      include: {
+        user: {
+          include: { role: true }
+        }
+      }
+    });
+
+    if (!session) {
+      throw new ForbiddenError("Invalid or expired session. Please sign in again.");
+    }
+
+    // Update lastSeenAt
+    await prisma.userSession.update({
+      where: { id: session.id },
+      data: { lastSeenAt: new Date() }
+    });
+
+    // Generate a fresh access token
+    const token = generateAccessToken({
+      sub: session.user.id,
+      role: session.user.role.code,
+      tenantId: session.user.tenantId
+    });
+
+    return {
+      token,
+      refreshToken: session.sessionTokenHash
     };
   }
 }
