@@ -87,6 +87,6 @@ export class AuthController {
     const userAgent = context.request.headers["user-agent"] || "Unknown Device";
     const ipAddress = (context.request.headers["x-forwarded-for"] as string) || context.request.socket.remoteAddress || "127.0.0.1";
     
-    return this.service.acceptInvitation(body.token || "", body.password || "", userAgent, ipAddress);
+    return this.service.acceptInvitation(body.token || "", body.password || "", userAgent, ipAddress, context.requestId);
   };
 }

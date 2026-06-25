@@ -5,13 +5,14 @@ import { loginSchema } from "./schema";
 import { onboardingSchema } from "../tenant/schema";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { resolveTenant } from "../../middleware/tenant.middleware";
+import { rateLimit } from "../../middleware/rate-limit.middleware";
 
 export function registerAuthRoutes(router: Router): void {
   const controller = new AuthController();
 
-  router.route("POST", "/api/v1/auth/login", [validateBody(loginSchema)], controller.login);
-  router.route("POST", "/api/v1/auth/google", [], controller.googleLogin);
-  router.route("POST", "/api/v1/auth/refresh", [], controller.refresh);
+  router.route("POST", "/api/v1/auth/login", [rateLimit(15, 15 * 60 * 1000), validateBody(loginSchema)], controller.login);
+  router.route("POST", "/api/v1/auth/google", [rateLimit(15, 15 * 60 * 1000)], controller.googleLogin);
+  router.route("POST", "/api/v1/auth/refresh", [rateLimit(30, 15 * 60 * 1000)], controller.refresh);
   router.route("POST", "/api/v1/auth/register", [validateBody(onboardingSchema)], controller.register);
   router.route("POST", "/api/v1/auth/logout", [requireAuth], controller.logout);
   router.route("GET", "/api/v1/auth/me", [requireAuth], controller.profile);
@@ -23,5 +24,5 @@ export function registerAuthRoutes(router: Router): void {
 
   // Public Invitation acceptance endpoints
   router.route("GET", "/api/v1/auth/invitation/:token", [], controller.getInvitation);
-  router.route("POST", "/api/v1/auth/invitation/accept", [], controller.acceptInvitation);
+  router.route("POST", "/api/v1/auth/invitation/accept", [rateLimit(15, 15 * 60 * 1000)], controller.acceptInvitation);
 }

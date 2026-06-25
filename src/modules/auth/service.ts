@@ -221,12 +221,12 @@ export class AuthService {
     return { success: true, message: "Password updated successfully." };
   }
 
-  async acceptInvitation(token: string, password: string, userAgent: string, ipAddress: string) {
+  async acceptInvitation(token: string, password: string, userAgent: string, ipAddress: string, requestId?: string) {
     const details = await this.invitationService.getInvitationByToken(token);
     
     // Hash password
     const hashed = hashPassword(password);
-    const user = await this.invitationService.acceptInvitation(token, hashed);
+    const user = await this.invitationService.acceptInvitation(token, hashed, { requestId, ipAddress, userAgent });
 
     // Generate JWT access token
     const jwtToken = generateAccessToken({

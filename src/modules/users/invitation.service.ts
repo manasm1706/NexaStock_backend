@@ -1,8 +1,12 @@
 import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 import { ValidationError, NotFoundError } from "../../lib/errors";
-import { randomUUID } from "node:crypto";
+import { randomUUID, createHash } from "node:crypto";
 import { sendMail, getBrandedInvitationTemplate } from "../../lib/mail";
+
+function hashToken(token: string): string {
+  return createHash("sha256").update(token).digest("hex");
+}
 
 export interface InvitationLedgerEntry {
   id: string;
@@ -38,7 +42,8 @@ export class InvitationService {
       permissionOverrides?: { permissionId: string; allowed: boolean }[];
       department?: string;
       reportsTo?: string;
-    }
+    },
+    requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }
   ) {
     // 1. Check if email already exists in the real User table
     const existingUser = await prisma.user.findFirst({
@@ -86,6 +91,7 @@ export class InvitationService {
     }
 
     const invitationToken = randomUUID();
+    const hashedToken = hashToken(invitationToken);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7); // Expires in 7 days
 
@@ -100,7 +106,7 @@ export class InvitationService {
       permissionOverrides: extra?.permissionOverrides || [],
       department: extra?.department || null,
       reportsTo: extra?.reportsTo || null,
-      token: invitationToken,
+      token: hashedToken,
       status: "CREATED",
       expiresAt: expiresAt.toISOString(),
       invitedBy: actorUserId,
@@ -177,7 +183,10 @@ export class InvitationService {
         summary: `Invited user ${fullName} (${email}) as role ${role.name}`,
         entityType: "user",
         severity: "INFO",
-        afterData: { inviteId: newInvite.id }
+        afterData: { inviteId: newInvite.id },
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
@@ -200,6 +209,7 @@ export class InvitationService {
    * Fetches invitation details by validating the token. Sets status to OPENED.
    */
   async getInvitationByToken(token: string) {
+    const hashedToken = hashToken(token);
     const allSettings = await prisma.tenantSettings.findMany();
     let foundSetting: any = null;
     let invite: InvitationLedgerEntry | null = null;
@@ -207,7 +217,7 @@ export class InvitationService {
     for (const s of allSettings) {
       const meta = (s.metadata as any) || {};
       const invites = meta.invitations || [];
-      const found = invites.find((i: any) => i.token === token);
+      const found = invites.find((i: any) => i.token === hashedToken);
       if (found) {
         foundSetting = s;
         invite = found;
@@ -276,7 +286,7 @@ export class InvitationService {
   /**
    * Accepts invitation by setting the user's password, status, and generating actual database relations.
    */
-  async acceptInvitation(token: string, passwordHash: string) {
+  async acceptInvitation(token: string, passwordHash: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const details = await this.getInvitationByToken(token);
     
     // Find the settings and the invite inside it
@@ -370,7 +380,10 @@ export class InvitationService {
         action: "user_joined",
         summary: `User ${user.fullName} (${user.email}) accepted invitation and joined organization`,
         entityType: "user",
-        severity: "INFO"
+        severity: "INFO",
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
@@ -380,7 +393,7 @@ export class InvitationService {
   /**
    * Resends the invitation: regenerates new token and sets status to RESENT.
    */
-  async resendInvitation(inviteId: string, tenantId: string, actorUserId: string) {
+  async resendInvitation(inviteId: string, tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const settings = await prisma.tenantSettings.findFirst({
       where: { tenantId }
     });
@@ -401,10 +414,11 @@ export class InvitationService {
     }
 
     const invitationToken = randomUUID();
+    const hashedToken = hashToken(invitationToken);
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    invite.token = invitationToken;
+    invite.token = hashedToken;
     invite.status = "RESENT";
     invite.expiresAt = expiresAt.toISOString();
     invite.updatedAt = new Date().toISOString();
@@ -473,7 +487,10 @@ export class InvitationService {
         action: "invite_resent",
         summary: `Resent invitation to ${invite.fullName} (${invite.email})`,
         entityType: "user",
-        severity: "INFO"
+        severity: "INFO",
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
@@ -495,7 +512,7 @@ export class InvitationService {
   /**
    * Cancels/revokes a pending invitation.
    */
-  async cancelInvitation(inviteId: string, tenantId: string, actorUserId: string) {
+  async cancelInvitation(inviteId: string, tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const settings = await prisma.tenantSettings.findFirst({
       where: { tenantId }
     });
@@ -538,7 +555,10 @@ export class InvitationService {
         action: "invite_cancelled",
         summary: `Cancelled invitation for ${invite.fullName} (${invite.email})`,
         entityType: "user",
-        severity: "INFO"
+        severity: "INFO",
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 

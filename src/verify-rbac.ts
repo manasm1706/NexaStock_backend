@@ -1,6 +1,6 @@
 import "dotenv/config";
 import { prisma } from "./lib/db";
-import { hashPassword } from "./lib/crypto";
+import { hashPassword, createId } from "./lib/crypto";
 
 const BASE_URL = "http://localhost:4000/api/v1";
 
@@ -23,7 +23,7 @@ async function runVerification() {
     throw new Error(`Owner login failed: ${await loginRes.text()}`);
   }
 
-  const { data: ownerAuth } = await loginRes.json();
+  const { data: ownerAuth } = (await loginRes.json()) as any;
   const ownerToken = ownerAuth.token;
   console.log(`✓ Owner authenticated successfully. Role: ${ownerAuth.user.role}`);
 
@@ -70,7 +70,7 @@ async function runVerification() {
     throw new Error(`Failed to invite cashier: ${await inviteRes.text()}`);
   }
 
-  const { data: inviteData } = await inviteRes.json();
+  const { data: inviteData } = (await inviteRes.json()) as any;
   console.log("✓ Cashier invited successfully.");
   console.log("Invite Data:", inviteData);
 
@@ -90,7 +90,7 @@ async function runVerification() {
   if (!getInviteRes.ok) {
     throw new Error(`Failed to fetch invitation details: ${await getInviteRes.text()}`);
   }
-  const inviteDetails = await getInviteRes.json();
+  const inviteDetails = (await getInviteRes.json()) as any;
   console.log("✓ Invitation retrieved successfully. Details:", inviteDetails.data);
 
   // Re-verify status transition in DB virtual ledger is OPENED
@@ -116,7 +116,7 @@ async function runVerification() {
     throw new Error(`Failed to accept invitation: ${await acceptRes.text()}`);
   }
 
-  const { data: cashierAuth } = await acceptRes.json();
+  const { data: cashierAuth } = (await acceptRes.json()) as any;
   const cashierToken = cashierAuth.token;
   console.log(`✓ Invitation accepted. Authenticated as: ${cashierAuth.user.fullName}`);
   console.log("Cashier User Profile DTO:", cashierAuth.user);
@@ -161,6 +161,88 @@ async function runVerification() {
     throw new Error(`POS route failed for cashier: ${await posRes.text()}`);
   }
   console.log("✓ POS summary successfully accessed with 200.");
+
+  // 6. Test Active Permission Revocation
+  console.log("\n[Step 6] Testing Active Permission Revocation...");
+
+  // Self-healing permission seeding for test tenant
+  const existingCount = await prisma.permission.count({
+    where: { tenantId: "tenant_acme" }
+  });
+
+  if (existingCount === 0) {
+    console.log("Seeding system permissions for tenant_acme...");
+    const keys = [
+      { code: "PRODUCT_MANAGEMENT", name: "Product Catalog Management", module: "products", action: "manage" },
+      { code: "INVENTORY_READ", name: "Read Inventory Levels", module: "inventory", action: "read" },
+      { code: "INVENTORY_WRITE", name: "Modify Inventory & Adjustments", module: "inventory", action: "write" },
+      { code: "POS_SALES", name: "Process Point of Sale Checkout", module: "pos", action: "sales" },
+      { code: "ANALYTICS_READ", name: "Read Store Analytics & Metrics", module: "analytics", action: "read" },
+      { code: "AI_READ", name: "Read AI Center Recommendations", module: "ai", action: "read" },
+      { code: "SETTINGS_MANAGE", name: "Manage System Settings & Policies", module: "settings", action: "manage" },
+      { code: "USER_MANAGEMENT", name: "Manage Team Members & Invites", module: "users", action: "manage" },
+      { code: "TENANT_ADMIN", name: "Full Organization Control", module: "organization", action: "admin" },
+      { code: "AUDIT_READ", name: "Read Security Compliance Logs", module: "compliance", action: "read" }
+    ];
+
+    for (const item of keys) {
+      await prisma.permission.create({
+        data: {
+          id: createId("perm"),
+          tenantId: "tenant_acme",
+          code: item.code,
+          name: item.name,
+          module: item.module,
+          action: item.action,
+          isSystem: true
+        }
+      });
+    }
+  }
+
+  // Find the actual permission ID for POS_SALES in DB
+  const permPos = await prisma.permission.findFirst({
+    where: { code: "POS_SALES", tenantId: "tenant_acme" }
+  });
+  if (!permPos) {
+    throw new Error("POS_SALES permission record not found in database.");
+  }
+
+  // Owner modifies cashier permissions to override POS permission to allowed: false
+  console.log("Owner revoking Cashier's POS permission...");
+  const updatePermsRes = await fetch(`${BASE_URL}/users/${cashierAuth.user.id}/permissions`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${ownerToken}`,
+      "x-tenant-id": "tenant_acme"
+    },
+    body: JSON.stringify({
+      overrides: [
+        { permissionId: permPos.id, allowed: false }
+      ]
+    })
+  });
+
+  if (!updatePermsRes.ok) {
+    throw new Error(`Failed to update cashier permissions by owner: ${await updatePermsRes.text()}`);
+  }
+  console.log("✓ Cashier's POS permission revoked by Owner in database.");
+
+  // Cashier tries to access POS summary API endpoint again (should now be blocked with 401/403)
+  console.log("Cashier requesting POS summary again (should now be blocked)...");
+  const posRes2 = await fetch(`${BASE_URL}/pos/summary`, {
+    headers: {
+      "Authorization": `Bearer ${cashierToken}`,
+      "x-tenant-id": "tenant_acme"
+    }
+  });
+
+  console.log(`Response status: ${posRes2.status} (Expected: 401 or 403)`);
+  if (posRes2.status !== 401 && posRes2.status !== 403) {
+    throw new Error(`RBAC Failure: Cashier was allowed to access POS summary even after POS permission was revoked. Status: ${posRes2.status}`);
+  }
+  console.log(`✓ POS summary successfully blocked with status ${posRes2.status} after revocation.`);
 
   console.log("\n=== ALL END-TO-END VERIFICATION TESTS PASSED SUCCESSFULLY! ===");
 }

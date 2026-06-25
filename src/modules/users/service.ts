@@ -40,7 +40,7 @@ export class UsersService {
     return [...dbUsers, ...mappedInvites];
   }
 
-  async updateUserRole(id: string, roleId: string, tenantId: string, actorUserId: string) {
+  async updateUserRole(id: string, roleId: string, tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const user = await this.repository.findUserById(id, tenantId);
     if (!user) {
       throw new NotFoundError("User not found.");
@@ -74,14 +74,17 @@ export class UsersService {
         summary: `Updated user ${user.fullName} role from ${user.role.name} to ${targetRole.name}`,
         entityType: "user",
         severity: "INFO",
-        afterData: { userId: id, oldRole: user.role.code, newRole: targetRole.code }
+        afterData: { userId: id, oldRole: user.role.code, newRole: targetRole.code },
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
     return toUserItemDTO(updated);
   }
 
-  async deactivateUser(id: string, tenantId: string, actorUserId: string) {
+  async deactivateUser(id: string, tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const user = await this.repository.findUserById(id, tenantId);
     if (!user) {
       throw new NotFoundError("User not found.");
@@ -108,14 +111,17 @@ export class UsersService {
         summary: `Deactivated user ${user.fullName} (${user.email})`,
         entityType: "user",
         severity: "INFO",
-        afterData: { userId: id }
+        afterData: { userId: id },
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
     return toUserItemDTO(updated);
   }
 
-  async reactivateUser(id: string, tenantId: string, actorUserId: string) {
+  async reactivateUser(id: string, tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const user = await this.repository.findUserById(id, tenantId);
     if (!user) {
       throw new NotFoundError("User not found.");
@@ -134,14 +140,17 @@ export class UsersService {
         summary: `Reactivated user ${user.fullName} (${user.email})`,
         entityType: "user",
         severity: "INFO",
-        afterData: { userId: id }
+        afterData: { userId: id },
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
     return toUserItemDTO(updated);
   }
 
-  async removeUser(id: string, tenantId: string, actorUserId: string) {
+  async removeUser(id: string, tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const user = await this.repository.findUserById(id, tenantId);
     if (!user) {
       throw new NotFoundError("User not found.");
@@ -168,14 +177,17 @@ export class UsersService {
         summary: `Permanently removed user ${user.fullName} (${user.email})`,
         entityType: "user",
         severity: "INFO",
-        afterData: { userId: id, email: user.email, fullName: user.fullName }
+        afterData: { userId: id, email: user.email, fullName: user.fullName },
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
     return { success: true, message: `User ${user.fullName} removed successfully` };
   }
 
-  async updateUserLocations(id: string, locationIds: string[], tenantId: string, actorUserId: string) {
+  async updateUserLocations(id: string, locationIds: string[], tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const user = await this.repository.findUserById(id, tenantId);
     if (!user) {
       throw new NotFoundError("User not found.");
@@ -213,14 +225,17 @@ export class UsersService {
         summary: `Updated locations assignment for user ${user.fullName}`,
         entityType: "user",
         severity: "INFO",
-        afterData: { userId: id, assignedLocations: locationIds }
+        afterData: { userId: id, assignedLocations: locationIds },
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
     return { success: true, message: "User location assignments updated successfully." };
   }
 
-  async updateUserPermissions(id: string, overrides: { permissionId: string; allowed: boolean }[], tenantId: string, actorUserId: string) {
+  async updateUserPermissions(id: string, overrides: { permissionId: string; allowed: boolean }[], tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
     const user = await this.repository.findUserById(id, tenantId);
     if (!user) {
       throw new NotFoundError("User not found.");
@@ -259,7 +274,10 @@ export class UsersService {
         summary: `Updated custom permission overrides for user ${user.fullName}`,
         entityType: "user",
         severity: "INFO",
-        afterData: { userId: id, overrides }
+        afterData: { userId: id, overrides },
+        requestId: requestMeta?.requestId ?? null,
+        ipAddress: requestMeta?.ipAddress ?? null,
+        userAgent: requestMeta?.userAgent ?? null
       }
     });
 
