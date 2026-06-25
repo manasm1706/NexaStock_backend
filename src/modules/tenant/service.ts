@@ -5,6 +5,7 @@ import { prisma } from "../../lib/db";
 import type { OnboardingInput } from "./schema";
 import { generateAccessToken } from "../../lib/jwt";
 import { toUserDTO } from "../auth/mapper";
+import { PermissionService } from "../users/PermissionService";
 
 // Sanitize payload for logging (strip passwords)
 function sanitizeForLog(input: any): any {
@@ -360,7 +361,8 @@ export class TenantService {
     const token = generateAccessToken({
       sub: adminUser.id,
       role: adminUser.role.code,
-      tenantId
+      tenantId,
+      tokenVersion: adminUser.tokenVersion
     });
 
     const refreshToken = createId("ref");
@@ -399,10 +401,11 @@ export class TenantService {
       }
     });
 
+    const effective = await PermissionService.getEffectivePermissions(adminUser.id, tenantId);
     return {
       token,
       refreshToken,
-      user: toUserDTO(adminUser),
+      user: toUserDTO(adminUser, effective),
       tenant: toTenantDTO(tenant, input.plan)
     };
   }

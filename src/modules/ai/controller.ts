@@ -5,7 +5,7 @@ export class AIController {
   private readonly service = new AIService();
 
   insights = async (context: RequestContext) => {
-    return this.service.getInsights(context.tenantId);
+    return this.service.getInsights(context.tenantId, context.actorId, context.role);
   };
 
   query = async (context: RequestContext) => {

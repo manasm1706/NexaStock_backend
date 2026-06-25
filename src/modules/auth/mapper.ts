@@ -2,8 +2,8 @@ import type { UserDTO } from "./dto";
 import type { Role } from "../../domain/types";
 import { roleLabels } from "../../domain/permissions";
 
-export function toUserDTO(user: any): UserDTO {
-  return {
+export function toUserDTO(user: any, effectivePermissions?: string[], assignedLocations?: string[]): UserDTO {
+  const dto: UserDTO = {
     id: user.id,
     fullName: user.fullName,
     email: user.email,
@@ -12,4 +12,13 @@ export function toUserDTO(user: any): UserDTO {
     tenantId: user.tenantId,
     status: user.status.toLowerCase()
   };
+
+  if (effectivePermissions !== undefined) {
+    dto.effectivePermissions = effectivePermissions;
+  }
+  if (assignedLocations !== undefined) {
+    dto.assignedLocations = assignedLocations;
+  }
+
+  return dto;
 }

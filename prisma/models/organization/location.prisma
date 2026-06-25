@@ -51,7 +51,8 @@ storageBins       StorageBin[] @relation("LocationStorageBins")
   inventoryTransfersTo   InventoryTransfer[] @relation("TransferToLocation")
   dispatchChallansOrigin DispatchChallan[] @relation("DCOriginLocation")
   dispatchChallansDestination DispatchChallan[] @relation("DCDestinationLocation")
-
+  userLocations               UserLocation[]
+ 
   @@unique([tenantId, code])
   @@index([tenantId, locationType])
   @@index([tenantId, status])

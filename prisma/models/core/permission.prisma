@@ -15,6 +15,7 @@ model Permission {
 
   tenant      Tenant        @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   rolePermissions RolePermission[]
+  userPermissionOverrides UserPermissionOverride[]
 
   @@unique([tenantId, code])
   @@index([tenantId, module])

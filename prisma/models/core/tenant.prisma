@@ -125,6 +125,8 @@ model Tenant {
   mfaConfigurations         MFAConfiguration[]
   rolePermissions           RolePermission[]
   userSessions              UserSession[]
+  userLocations             UserLocation[]
+  userPermissionOverrides   UserPermissionOverride[]
 
   @@index([slug])
   @@index([status, operationalModel])

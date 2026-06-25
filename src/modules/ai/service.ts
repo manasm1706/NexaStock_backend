@@ -2,6 +2,7 @@ import { AIRepository } from "./repository";
 import type { AIInsightsDTO, AIRecommendationDTO, DemandForecastDTO, AIAlertDTO, ReorderSuggestionDTO, NaturalQueryResultDTO } from "./dto";
 import { toForecastItemDTO } from "./mapper";
 import { prisma } from "../../lib/db";
+import { resolveLocationScope } from "../../lib/locationScoper";
 
 export class AIService {
   private readonly repository = new AIRepository();
@@ -22,8 +23,20 @@ export class AIService {
     }
   }
 
-  async getInsights(tenantId: string): Promise<AIInsightsDTO> {
-    const cacheKey = `${tenantId}:insights`;
+  async getInsights(tenantId: string, actorId?: string, roleCode?: string): Promise<AIInsightsDTO> {
+    let locationIds: string[] | undefined = undefined;
+    let isRestricted = false;
+    let cacheKey = `${tenantId}:insights`;
+
+    if (actorId && roleCode) {
+      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
+      if (scope.isRestricted) {
+        locationIds = scope.locationIds;
+        isRestricted = true;
+        cacheKey = `${tenantId}:${actorId}:insights`;
+      }
+    }
+
     const nowMs = Date.now();
     const cached = AIService.cache.get(cacheKey);
 
@@ -31,76 +44,78 @@ export class AIService {
       return cached.data;
     }
 
-    // 1. Try to load today's saved snapshot from the database (AI insight history)
-    const storedSnapshot = await this.repository.getTodaySnapshot(tenantId);
-    
-    if (storedSnapshot && storedSnapshot.metrics) {
-      const metrics = storedSnapshot.metrics as any;
-      const storedRecs = await this.repository.getStoredRecommendations(tenantId);
+    // 1. Try to load today's saved snapshot from the database (skip if user has restricted location access to avoid leakage)
+    if (!isRestricted) {
+      const storedSnapshot = await this.repository.getTodaySnapshot(tenantId);
       
-      if (storedRecs.length > 0) {
-        // Map stored recommendations back to DTO
-        const recommendations: AIRecommendationDTO[] = storedRecs.map(r => ({
-          id: r.id,
-          tag: r.recommendationType,
-          title: r.title,
-          body: r.description || "",
-          confidence: Number(r.confidence),
-          priority: r.priority as any,
-          reasoning: (r.metadata as any)?.reasoning || "Historical records mapping database metrics.",
-          trend: (r.metadata as any)?.trend || "Stable",
-          entityId: r.entityId,
-          entityType: r.entityType
-        }));
+      if (storedSnapshot && storedSnapshot.metrics) {
+        const metrics = storedSnapshot.metrics as any;
+        const storedRecs = await this.repository.getStoredRecommendations(tenantId);
+        
+        if (storedRecs.length > 0) {
+          // Map stored recommendations back to DTO
+          const recommendations: AIRecommendationDTO[] = storedRecs.map(r => ({
+            id: r.id,
+            tag: r.recommendationType,
+            title: r.title,
+            body: r.description || "",
+            confidence: Number(r.confidence),
+            priority: r.priority as any,
+            reasoning: (r.metadata as any)?.reasoning || "Historical records mapping database metrics.",
+            trend: (r.metadata as any)?.trend || "Stable",
+            entityId: r.entityId,
+            entityType: r.entityType
+          }));
 
-        const reorders: ReorderSuggestionDTO[] = recommendations
-          .filter(r => r.tag === "Reorder")
-          .map(r => {
-            const meta = (r as any).metadata || {};
-            return {
-              productId: r.entityId || "none",
-              name: r.title.replace("Place replenishment purchase order for ", ""),
-              sku: meta.sku || "N/A",
-              currentStock: meta.currentStock || 0,
-              avgDailySales: meta.avgDailySales || 0,
-              daysRemaining: meta.daysRemaining || 0,
-              suggestedQty: meta.suggestedQty || 0,
-              priority: r.priority,
-              confidence: r.confidence,
-              reasoning: r.reasoning,
-              trend: r.trend
-            };
-          });
+          const reorders: ReorderSuggestionDTO[] = recommendations
+            .filter(r => r.tag === "Reorder")
+            .map(r => {
+              const meta = (r as any).metadata || {};
+              return {
+                productId: r.entityId || "none",
+                name: r.title.replace("Place replenishment purchase order for ", ""),
+                sku: meta.sku || "N/A",
+                currentStock: meta.currentStock || 0,
+                avgDailySales: meta.avgDailySales || 0,
+                daysRemaining: meta.daysRemaining || 0,
+                suggestedQty: meta.suggestedQty || 0,
+                priority: r.priority,
+                confidence: r.confidence,
+                reasoning: r.reasoning,
+                trend: r.trend
+              };
+            });
 
-        const result: AIInsightsDTO = {
-          executiveSummary: metrics.executiveSummary,
-          inventoryHealth: metrics.inventoryHealth,
-          recommendations,
-          reorders,
-          forecasts: metrics.forecasts || [],
-          alerts: metrics.alerts || [],
-          storePerformance: metrics.storePerformance || { bestStore: "N/A", worstStore: "N/A", insights: [] },
-          modelName: "NexaStock-Forecast v3.1",
-          mape: "4.8%",
-          coverage: "96%",
-          latency: "180ms"
-        };
+          const result: AIInsightsDTO = {
+            executiveSummary: metrics.executiveSummary,
+            inventoryHealth: metrics.inventoryHealth,
+            recommendations,
+            reorders,
+            forecasts: metrics.forecasts || [],
+            alerts: metrics.alerts || [],
+            storePerformance: metrics.storePerformance || { bestStore: "N/A", worstStore: "N/A", insights: [] },
+            modelName: "NexaStock-Forecast v3.1",
+            mape: "4.8%",
+            coverage: "96%",
+            latency: "180ms"
+          };
 
-        // Cache the historical results
-        AIService.cache.set(cacheKey, { data: result, timestamp: nowMs });
-        return result;
+          // Cache the historical results
+          AIService.cache.set(cacheKey, { data: result, timestamp: nowMs });
+          return result;
+        }
       }
     }
 
-    // 2. No today's snapshot in DB: run full deterministic calculations
+    // 2. Run calculations based on permitted locations
     const sixtyDaysAgo = new Date();
     sixtyDaysAgo.setDate(sixtyDaysAgo.getDate() - 60);
 
     const [products, inventories, sales, locations, categories] = await Promise.all([
       this.repository.getProducts(tenantId),
-      this.repository.getBalances(tenantId),
-      this.repository.getCompletedSales(tenantId, sixtyDaysAgo),
-      this.repository.getLocations(tenantId),
+      this.repository.getBalances(tenantId, locationIds),
+      this.repository.getCompletedSales(tenantId, sixtyDaysAgo, locationIds),
+      this.repository.getLocations(tenantId, locationIds),
       this.repository.getProductCategories(tenantId)
     ]);
 

@@ -9,17 +9,24 @@ export class AIRepository {
     });
   }
 
-  async getBalances(tenantId: string) {
+  async getBalances(tenantId: string, locationIds?: string[]) {
+    const where: any = { tenantId };
+    if (locationIds) {
+      where.locationId = { in: locationIds };
+    }
     return prisma.inventory.findMany({
-      where: { tenantId },
+      where,
       include: { product: true, location: true }
     });
   }
 
-  async getCompletedSales(tenantId: string, startDate?: Date) {
+  async getCompletedSales(tenantId: string, startDate?: Date, locationIds?: string[]) {
     const whereClause: any = { tenantId, status: "COMPLETED" };
     if (startDate) {
       whereClause.saleDate = { gte: startDate };
+    }
+    if (locationIds) {
+      whereClause.locationId = { in: locationIds };
     }
     return prisma.sale.findMany({
       where: whereClause,
@@ -39,9 +46,13 @@ export class AIRepository {
     });
   }
 
-  async getLocations(tenantId: string) {
+  async getLocations(tenantId: string, locationIds?: string[]) {
+    const where: any = { tenantId };
+    if (locationIds) {
+      where.id = { in: locationIds };
+    }
     return prisma.location.findMany({
-      where: { tenantId }
+      where
     });
   }
 

@@ -9,4 +9,6 @@ export interface UserItemDTO {
   status: string;
   lastLoginAt?: string | null;
   metadata?: any;
+  assignedLocations?: { locationId: string }[];
+  permissionOverrides?: { permissionId: string; allowed: boolean; permissionCode?: string }[];
 }

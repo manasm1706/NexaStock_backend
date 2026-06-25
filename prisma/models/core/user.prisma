@@ -73,6 +73,9 @@ model User {
   uploadedFiles             FileAttachment[]
 
   createdSales              Sale[]
+  assignedLocations         UserLocation[]
+  permissionOverrides       UserPermissionOverride[]
+  tokenVersion              Int         @default(1)
 
   @@unique([tenantId, email])
 

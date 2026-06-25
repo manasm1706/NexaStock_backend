@@ -8,6 +8,8 @@ export interface UserDTO {
   roleLabel: string;
   tenantId: string;
   status: string;
+  effectivePermissions?: string[] | undefined;
+  assignedLocations?: string[];
 }
 
 export interface LoginResponseDTO {

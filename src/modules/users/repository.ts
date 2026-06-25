@@ -5,14 +5,30 @@ export class UsersRepository {
   async findUsers(tenantId: string) {
     return prisma.user.findMany({
       where: { tenantId },
-      include: { role: true }
+      include: {
+        role: true,
+        assignedLocations: true,
+        permissionOverrides: {
+          include: {
+            permission: true
+          }
+        }
+      }
     });
   }
 
   async findUserById(id: string, tenantId: string) {
     return prisma.user.findFirst({
       where: { id, tenantId },
-      include: { role: true }
+      include: {
+        role: true,
+        assignedLocations: true,
+        permissionOverrides: {
+          include: {
+            permission: true
+          }
+        }
+      }
     });
   }
 

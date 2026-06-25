@@ -12,6 +12,7 @@ export function registerSettingsRoutes(router: Router): void {
   router.route("POST", "/api/v1/roles", [requireAuth, resolveTenant, requirePermission("settingsManage")], controller.createRole);
   router.route("GET", "/api/v1/roles/:id/permissions", [requireAuth, resolveTenant, requirePermission("settingsManage")], controller.getPermissions);
   router.route("PUT", "/api/v1/roles/:id/permissions", [requireAuth, resolveTenant, requirePermission("settingsManage")], controller.savePermissions);
+  router.route("POST", "/api/v1/roles/:id/clone", [requireAuth, resolveTenant, requirePermission("settingsManage")], controller.cloneRole);
 
   // Security policy (guarded by settingsManage)
   router.route("GET", "/api/v1/security/policy", [requireAuth, resolveTenant], controller.getPolicy);

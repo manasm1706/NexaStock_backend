@@ -13,6 +13,7 @@
   "devDependencies": {
     "@types/bcryptjs": "^2.4.6",
     "@types/node": "^22.16.5",
+    "@types/nodemailer": "^8.0.1",
     "@types/pg": "^8.20.0",
     "prisma-import": "^1.0.5",
     "tsx": "^4.20.3",
@@ -23,6 +24,7 @@
     "@prisma/client": "^7.8.0",
     "bcryptjs": "^3.0.3",
     "google-auth-library": "^10.7.0",
+    "nodemailer": "^9.0.1",
     "pg": "^8.21.0",
     "prisma": "^7.8.0",
     "zod": "^4.4.3"

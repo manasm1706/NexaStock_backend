@@ -12,12 +12,15 @@ export class AnalyticsRepository {
     return prisma.alert.findMany({ where: { tenantId } });
   }
 
-  async getCompletedSales(tenantId: string, startDate?: Date, endDate?: Date) {
+  async getCompletedSales(tenantId: string, startDate?: Date, endDate?: Date, locationIds?: string[]) {
     const whereClause: any = { tenantId, status: "COMPLETED" };
     if (startDate || endDate) {
       whereClause.saleDate = {};
       if (startDate) whereClause.saleDate.gte = startDate;
       if (endDate) whereClause.saleDate.lte = endDate;
+    }
+    if (locationIds) {
+      whereClause.locationId = { in: locationIds };
     }
     return prisma.sale.findMany({
       where: whereClause,
@@ -38,9 +41,13 @@ export class AnalyticsRepository {
     });
   }
 
-  async getBalances(tenantId: string) {
+  async getBalances(tenantId: string, locationIds?: string[]) {
+    const whereClause: any = { tenantId };
+    if (locationIds) {
+      whereClause.locationId = { in: locationIds };
+    }
     return prisma.inventory.findMany({
-      where: { tenantId },
+      where: whereClause,
       include: {
         product: {
           include: {
@@ -52,15 +59,26 @@ export class AnalyticsRepository {
     });
   }
 
-  async getPendingTransfersCount(tenantId: string) {
+  async getPendingTransfersCount(tenantId: string, locationIds?: string[]) {
+    const whereClause: any = { tenantId, status: "REQUESTED" };
+    if (locationIds) {
+      whereClause.OR = [
+        { fromLocationId: { in: locationIds } },
+        { toLocationId: { in: locationIds } }
+      ];
+    }
     return prisma.transferRequest.count({
-      where: { tenantId, status: "REQUESTED" }
+      where: whereClause
     });
   }
 
-  async getLocations(tenantId: string) {
+  async getLocations(tenantId: string, locationIds?: string[]) {
+    const whereClause: any = { tenantId };
+    if (locationIds) {
+      whereClause.id = { in: locationIds };
+    }
     return prisma.location.findMany({
-      where: { tenantId }
+      where: whereClause
     });
   }
 
@@ -70,4 +88,3 @@ export class AnalyticsRepository {
     });
   }
 }
-

@@ -2,37 +2,61 @@ import { InventoryRepository } from "./repository";
 import { toInventoryBalanceDTO, toInventoryMovementDTO } from "./mapper";
 import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
+import { resolveLocationScope, buildAuditMetadata } from "../../lib/locationScoper";
+import { ForbiddenError } from "../../lib/errors";
 import type { AdjustInventoryInput, ImportInventoryInput } from "./schema";
 
 export class InventoryService {
   private readonly repository = new InventoryRepository();
 
-  async getBalances(tenantId: string) {
-    const balances = await this.repository.findBalances(tenantId);
+  async getBalances(tenantId: string, actorId?: string, roleCode?: string) {
+    let locationIds: string[] | undefined = undefined;
+    if (actorId && roleCode) {
+      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
+      if (scope.isRestricted) {
+        locationIds = scope.locationIds;
+      }
+    }
+    const balances = await this.repository.findBalances(tenantId, locationIds);
     return balances.map(toInventoryBalanceDTO);
   }
 
-  async getMovements(tenantId: string) {
-    const movements = await this.repository.findMovements(tenantId);
+  async getMovements(tenantId: string, actorId?: string, roleCode?: string) {
+    let locationIds: string[] | undefined = undefined;
+    if (actorId && roleCode) {
+      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
+      if (scope.isRestricted) {
+        locationIds = scope.locationIds;
+      }
+    }
+    const movements = await this.repository.findMovements(tenantId, locationIds);
     return movements.map(toInventoryMovementDTO);
   }
 
-  async adjustInventory(input: AdjustInventoryInput, actorId: string, tenantId: string) {
+  async adjustInventory(input: AdjustInventoryInput, actorId: string, roleCode: string, tenantId: string) {
     const { productId, locationId, quantity, reason } = input;
+
+    // Check location permission scope
+    const scope = await resolveLocationScope(actorId, tenantId, roleCode);
+    if (scope.isRestricted && !scope.locationIds.includes(locationId)) {
+      throw new ForbiddenError("You do not have permission to adjust inventory at this location");
+    }
+
+    const auditMeta = buildAuditMetadata(actorId, roleCode, locationId);
 
     const result = await prisma.$transaction(async (tx) => {
       let inv = await this.repository.findInventoryRecord(productId, locationId, tenantId, tx);
       let qtyBefore = 0;
 
       if (!inv) {
-        inv = await this.repository.createInventoryRecord(productId, locationId, quantity, tenantId, tx);
+        inv = await this.repository.createInventoryRecord(productId, locationId, quantity, tenantId, auditMeta, tx);
       } else {
         qtyBefore = inv.qtyOnHand;
-        inv = await this.repository.updateInventoryRecordQty(inv.id, quantity, tenantId, tx);
+        inv = await this.repository.updateInventoryRecordQty(inv.id, quantity, tenantId, auditMeta, tx);
       }
 
-      const movement = await this.repository.insertMovement(productId, locationId, quantity, reason, tenantId, tx);
-      await this.repository.insertStockAdjustment(inv.id, qtyBefore, inv.qtyOnHand, quantity, reason, tenantId, tx);
+      const movement = await this.repository.insertMovement(productId, locationId, quantity, reason, tenantId, auditMeta, tx);
+      await this.repository.insertStockAdjustment(inv.id, qtyBefore, inv.qtyOnHand, quantity, reason, tenantId, auditMeta, tx);
 
       return movement;
     });
@@ -47,15 +71,24 @@ export class InventoryService {
         action: "adjustment",
         summary: `Adjusted stock by ${quantity} units for product ${productId} at location ${locationId}. Reason: ${reason}`,
         entityType: "inventory",
-        severity: "INFO"
+        severity: "INFO",
+        afterData: auditMeta
       }
     });
 
     return toInventoryMovementDTO(result);
   }
 
-  async bulkImportInventory(input: ImportInventoryInput, actorId: string, tenantId: string) {
+  async bulkImportInventory(input: ImportInventoryInput, actorId: string, roleCode: string, tenantId: string) {
     const { locationId, items } = input;
+
+    // Check location permission scope
+    const scope = await resolveLocationScope(actorId, tenantId, roleCode);
+    if (scope.isRestricted && !scope.locationIds.includes(locationId)) {
+      throw new ForbiddenError("You do not have permission to import inventory at this location");
+    }
+
+    const auditMeta = buildAuditMetadata(actorId, roleCode, locationId);
 
     const stats = {
       created: 0,
@@ -109,7 +142,8 @@ export class InventoryService {
               isActive: true,
               metadata: {
                 purchasePrice: item.purchasePrice,
-                sellingPrice: item.sellingPrice
+                sellingPrice: item.sellingPrice,
+                ...auditMeta
               }
             }
           });
@@ -119,7 +153,8 @@ export class InventoryService {
           const updatedMeta = {
             ...existingMeta,
             purchasePrice: item.purchasePrice,
-            sellingPrice: item.sellingPrice
+            sellingPrice: item.sellingPrice,
+            ...auditMeta
           };
           product = await tx.product.update({
             where: { id: product.id },
@@ -151,7 +186,8 @@ export class InventoryService {
               locationId,
               productId: product.id,
               qtyOnHand: item.quantity,
-              qtyReserved: 0
+              qtyReserved: 0,
+              metadata: auditMeta
             }
           });
 
@@ -167,7 +203,8 @@ export class InventoryService {
                 movementNumber: createId("MOV"),
                 quantity: item.quantity,
                 notes: `Bulk Import initial stock input`,
-                occurredAt: new Date()
+                occurredAt: new Date(),
+                metadata: auditMeta
               }
             });
 
@@ -182,7 +219,8 @@ export class InventoryService {
                 quantityAfter: item.quantity,
                 varianceQty: item.quantity,
                 reasonCode: "IMPORT",
-                status: "CONFIRMED"
+                status: "CONFIRMED",
+                metadata: auditMeta
               }
             });
           }
@@ -193,7 +231,8 @@ export class InventoryService {
             inventory = await tx.inventory.update({
               where: { id: inventory.id },
               data: {
-                qtyOnHand: { increment: item.quantity }
+                qtyOnHand: { increment: item.quantity },
+                metadata: auditMeta
               }
             });
 
@@ -208,7 +247,8 @@ export class InventoryService {
                 movementNumber: createId("MOV"),
                 quantity: item.quantity,
                 notes: `Bulk Import incremental stock increment`,
-                occurredAt: new Date()
+                occurredAt: new Date(),
+                metadata: auditMeta
               }
             });
 
@@ -223,7 +263,8 @@ export class InventoryService {
                 quantityAfter: qtyAfter,
                 varianceQty: item.quantity,
                 reasonCode: "IMPORT",
-                status: "CONFIRMED"
+                status: "CONFIRMED",
+                metadata: auditMeta
               }
             });
           }
@@ -241,7 +282,8 @@ export class InventoryService {
         action: "import",
         summary: `Imported ${stats.total} inventory items via bulk import (${stats.created} created, ${stats.updated} updated).`,
         entityType: "inventory",
-        severity: "INFO"
+        severity: "INFO",
+        afterData: auditMeta
       }
     });
 

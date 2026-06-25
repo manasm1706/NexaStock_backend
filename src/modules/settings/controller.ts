@@ -565,5 +565,81 @@ export class SettingsController {
 
     return { success: true, workspaceSettings: body };
   };
+
+  cloneRole = async (context: RequestContext) => {
+    const tenantId = context.tenantId;
+    const roleId = context.params.id as string;
+    const body = (context.body as { name?: string; description?: string }) || {};
+
+    const sourceRole = await prisma.role.findFirst({
+      where: { id: roleId, tenantId }
+    });
+    if (!sourceRole) {
+      throw new NotFoundError("Source role not found.");
+    }
+
+    const name = body.name || `Copy of ${sourceRole.name}`;
+    const code = name.toLowerCase().trim().replace(/\s+/g, "_").replace(/[^a-z0-9_]/g, "");
+    if (!code) {
+      throw new ValidationError("Invalid cloned role name.");
+    }
+
+    const existing = await prisma.role.findFirst({
+      where: { tenantId, code }
+    });
+    if (existing) {
+      throw new ValidationError(`A role with code '${code}' already exists.`);
+    }
+
+    const newRoleId = createId("role");
+
+    const sourcePermissions = await prisma.rolePermission.findMany({
+      where: { tenantId, roleId }
+    });
+
+    const result = await prisma.$transaction(async (tx) => {
+      const clonedRole = await tx.role.create({
+        data: {
+          id: newRoleId,
+          tenantId,
+          code,
+          name,
+          description: body.description || sourceRole.description || "",
+          isSystem: false
+        }
+      });
+
+      if (sourcePermissions.length > 0) {
+        await tx.rolePermission.createMany({
+          data: sourcePermissions.map(sp => ({
+            id: createId("rp"),
+            tenantId,
+            roleId: newRoleId,
+            permissionId: sp.permissionId,
+            allowed: sp.allowed,
+            scope: sp.scope !== null && sp.scope !== undefined ? (sp.scope as any) : null
+          }))
+        });
+      }
+
+      return clonedRole;
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        id: createId("audit"),
+        tenantId,
+        actorUserId: context.actorId || null,
+        module: "settings",
+        action: "role_cloned",
+        summary: `Cloned role ${sourceRole.name} to ${name}`,
+        entityType: "role",
+        severity: "INFO",
+        afterData: { sourceRoleId: roleId, clonedRoleId: newRoleId }
+      }
+    });
+
+    return result;
+  };
 }
 

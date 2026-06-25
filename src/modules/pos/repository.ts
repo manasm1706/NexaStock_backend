@@ -2,11 +2,17 @@ import { prisma, type PrismaInstance } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 
 export class POSRepository {
-  async getCounts(tenantId: string, tx: PrismaInstance = prisma) {
+  async getCounts(tenantId: string, locationIds?: string[], tx: PrismaInstance = prisma) {
+    const whereInvoice: any = { tenantId, invoiceStatus: { not: "VOIDED" } };
+    const whereLocation: any = { tenantId };
+    if (locationIds) {
+      whereInvoice.sale = { locationId: { in: locationIds } };
+      whereLocation.id = { in: locationIds };
+    }
     const [productsCount, locationsCount, openInvoicesCount] = await Promise.all([
       tx.product.count({ where: { tenantId } }),
-      tx.location.count({ where: { tenantId } }),
-      tx.invoice.count({ where: { tenantId, invoiceStatus: { not: "VOIDED" } } })
+      tx.location.count({ where: whereLocation }),
+      tx.invoice.count({ where: whereInvoice })
     ]);
     return { productsCount, locationsCount, openInvoicesCount };
   }

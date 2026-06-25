@@ -4,11 +4,12 @@ export interface TokenPayload {
   sub: string;
   role: string;
   tenantId: string;
+  tokenVersion?: number;
   exp: string;
 }
 
 export function generateAccessToken(
-  payload: { sub: string; role: string; tenantId: string },
+  payload: { sub: string; role: string; tenantId: string; tokenVersion?: number },
   expiresInHours = 24
 ): string {
   const secret = process.env.TOKEN_SECRET ?? "dev-secret";

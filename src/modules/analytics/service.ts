@@ -2,6 +2,7 @@ import { AnalyticsRepository } from "./repository";
 import type { AnalyticsDashboardDTO, TopProductDTO, ProductVelocityDTO, AlertDTO, ValueNameDTO, TrendPointDTO, CategoryMetricDTO, LowStockItemDTO, DeadStockItemDTO, DrillDownItemDTO } from "./dto";
 import { toAlertDTO } from "./mapper";
 import { prisma } from "../../lib/db";
+import { resolveLocationScope } from "../../lib/locationScoper";
 
 export class AnalyticsService {
   private readonly repository = new AnalyticsRepository();
@@ -25,9 +26,21 @@ export class AnalyticsService {
   async getDashboardData(
     tenantId: string,
     startDateStr?: string,
-    endDateStr?: string
+    endDateStr?: string,
+    actorId?: string,
+    roleCode?: string
   ): Promise<AnalyticsDashboardDTO> {
-    const cacheKey = `${tenantId}:${startDateStr || ""}:${endDateStr || ""}`;
+    let locationIds: string[] | undefined = undefined;
+    let cacheKey = `${tenantId}:${startDateStr || ""}:${endDateStr || ""}`;
+
+    if (actorId && roleCode) {
+      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
+      if (scope.isRestricted) {
+        locationIds = scope.locationIds;
+        cacheKey = `${tenantId}:${actorId}:${startDateStr || ""}:${endDateStr || ""}`;
+      }
+    }
+
     const nowMs = Date.now();
     const cached = AnalyticsService.cache.get(cacheKey);
 
@@ -51,10 +64,10 @@ export class AnalyticsService {
     const [products, alerts, sales, inventories, pendingTransfers, locations, categories] = await Promise.all([
       this.repository.getProducts(tenantId),
       this.repository.getAlerts(tenantId),
-      this.repository.getCompletedSales(tenantId, startDate, endDate),
-      this.repository.getBalances(tenantId),
-      this.repository.getPendingTransfersCount(tenantId),
-      this.repository.getLocations(tenantId),
+      this.repository.getCompletedSales(tenantId, startDate, endDate, locationIds),
+      this.repository.getBalances(tenantId, locationIds),
+      this.repository.getPendingTransfersCount(tenantId, locationIds),
+      this.repository.getLocations(tenantId, locationIds),
       this.repository.getProductCategories(tenantId)
     ]);
 

@@ -2,9 +2,16 @@ import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 
 export class TransfersRepository {
-  async findTransfers(tenantId: string) {
+  async findTransfers(tenantId: string, locationIds?: string[]) {
+    const where: any = { tenantId };
+    if (locationIds) {
+      where.OR = [
+        { fromLocationId: { in: locationIds } },
+        { toLocationId: { in: locationIds } }
+      ];
+    }
     return prisma.transferRequest.findMany({
-      where: { tenantId },
+      where,
       include: { items: true },
       orderBy: { createdAt: "desc" }
     });
@@ -15,6 +22,7 @@ export class TransfersRepository {
     fromLocationId: string;
     toLocationId: string;
     requestedByUserId: string;
+    metadata?: any;
   }) {
     return prisma.transferRequest.create({
       data: {
@@ -24,7 +32,8 @@ export class TransfersRepository {
         fromLocationId: data.fromLocationId,
         toLocationId: data.toLocationId,
         status: "REQUESTED",
-        requestedByUserId: data.requestedByUserId
+        requestedByUserId: data.requestedByUserId,
+        metadata: data.metadata || null
       }
     });
   }

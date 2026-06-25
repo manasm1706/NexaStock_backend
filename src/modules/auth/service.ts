@@ -9,6 +9,7 @@ import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 import { InvitationService } from "../users/invitation.service";
 import { OAuth2Client } from "google-auth-library";
+import { PermissionService } from "../users/PermissionService";
 
 function parseDeviceName(userAgent: string): string {
   if (userAgent.includes("iPhone")) return "iPhone";
@@ -23,6 +24,14 @@ function parseDeviceName(userAgent: string): string {
 export class AuthService {
   private readonly repository = new AuthRepository();
   private readonly invitationService = new InvitationService();
+
+  private async getAssignedLocations(userId: string): Promise<string[]> {
+    const locations = await prisma.userLocation.findMany({
+      where: { userId },
+      select: { locationId: true }
+    });
+    return locations.map(l => l.locationId);
+  }
 
   async login(
     input: LoginInput,
@@ -46,7 +55,8 @@ export class AuthService {
     const token = generateAccessToken({
       sub: user.id,
       role: user.role.code,
-      tenantId: user.tenantId
+      tenantId: user.tenantId,
+      tokenVersion: user.tokenVersion
     });
 
     const refreshToken = createId("ref");
@@ -92,10 +102,12 @@ export class AuthService {
       console.error("Failed to track session log or last login:", sessionErr);
     }
 
+    const effective = await PermissionService.getEffectivePermissions(user.id, user.tenantId);
+    const locations = await this.getAssignedLocations(user.id);
     return {
       token,
       refreshToken,
-      user: toUserDTO(user)
+      user: toUserDTO(user, effective, locations)
     };
   }
 
@@ -104,7 +116,9 @@ export class AuthService {
     if (!user) {
       throw new NotFoundError("Session user not found");
     }
-    return toUserDTO(user);
+    const effective = await PermissionService.getEffectivePermissions(user.id, tenantId);
+    const locations = await this.getAssignedLocations(user.id);
+    return toUserDTO(user, effective, locations);
   }
 
   async updateProfile(userId: string, tenantId: string, fullName: string, email: string) {
@@ -143,7 +157,9 @@ export class AuthService {
       }
     });
 
-    return toUserDTO(updated);
+    const effective = await PermissionService.getEffectivePermissions(updated.id, tenantId);
+    const locations = await this.getAssignedLocations(updated.id);
+    return toUserDTO(updated, effective, locations);
   }
 
   async updatePassword(userId: string, tenantId: string, input: any) {
@@ -216,7 +232,8 @@ export class AuthService {
     const jwtToken = generateAccessToken({
       sub: user.id,
       role: user.role.code,
-      tenantId: user.tenantId
+      tenantId: user.tenantId,
+      tokenVersion: user.tokenVersion
     });
 
     const refreshToken = createId("ref");
@@ -247,10 +264,12 @@ export class AuthService {
       console.error("Failed to track session during invitation acceptance:", sessionErr);
     }
 
+    const effective = await PermissionService.getEffectivePermissions(user.id, user.tenantId);
+    const locations = await this.getAssignedLocations(user.id);
     return {
       token: jwtToken,
       refreshToken,
-      user: toUserDTO(user)
+      user: toUserDTO(user, effective, locations)
     };
   }
 
@@ -322,7 +341,8 @@ export class AuthService {
     const token = generateAccessToken({
       sub: user.id,
       role: user.role.code,
-      tenantId: user.tenantId
+      tenantId: user.tenantId,
+      tokenVersion: user.tokenVersion
     });
 
     const refreshToken = createId("ref");
@@ -366,10 +386,12 @@ export class AuthService {
       console.error("Failed to track session log or last login for Google login:", sessionErr);
     }
 
+    const effective = await PermissionService.getEffectivePermissions(user.id, user.tenantId);
+    const locations = await this.getAssignedLocations(user.id);
     return {
       token,
       refreshToken,
-      user: toUserDTO(user)
+      user: toUserDTO(user, effective, locations)
     };
   }
 
@@ -409,7 +431,8 @@ export class AuthService {
     const token = generateAccessToken({
       sub: session.user.id,
       role: session.user.role.code,
-      tenantId: session.user.tenantId
+      tenantId: session.user.tenantId,
+      tokenVersion: session.user.tokenVersion
     });
 
     return {
