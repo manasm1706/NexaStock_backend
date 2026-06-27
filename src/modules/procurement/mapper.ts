@@ -7,6 +7,7 @@ export function toSupplierDTO(sup: any): SupplierDTO {
     tenantId: sup.tenantId,
     name: sup.name,
     code: sup.supplierCode,
+    productIds: Array.isArray(sup.productLinks) ? sup.productLinks.map((link: any) => link.productId) : [],
     contactName: contact?.name || "",
     phone: contact?.phone || "",
     email: contact?.email || "",

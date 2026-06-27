@@ -10,6 +10,9 @@ import { createId } from "../../lib/crypto";
 import { InvitationService } from "../users/invitation.service";
 import { OAuth2Client } from "google-auth-library";
 import { PermissionService } from "../users/PermissionService";
+import { store } from "../../data/store";
+import { roleLabels, permissionMatrix } from "../../domain/permissions";
+import type { Role } from "../../domain/types";
 
 function parseDeviceName(userAgent: string): string {
   if (userAgent.includes("iPhone")) return "iPhone";
@@ -21,9 +24,132 @@ function parseDeviceName(userAgent: string): string {
   return "Unknown Device";
 }
 
+const FALLBACK_PERMISSION_KEY_MAP: Record<string, string> = {
+  productManagement: "PRODUCT_MANAGEMENT",
+  inventoryRead: "INVENTORY_READ",
+  inventoryAdjustments: "INVENTORY_WRITE",
+  warehouseManagement: "WAREHOUSE_MANAGEMENT",
+  posSales: "POS_SALES",
+  dispatchOperations: "DISPATCH_OPERATIONS",
+  userManagement: "USER_MANAGEMENT",
+  settingsManage: "SETTINGS_MANAGE",
+  analyticsRead: "ANALYTICS_READ",
+  aiRead: "AI_READ",
+  auditRead: "AUDIT_READ",
+  tenantAdmin: "TENANT_ADMIN"
+};
+
 export class AuthService {
   private readonly repository = new AuthRepository();
   private readonly invitationService = new InvitationService();
+
+  private isDatabaseConnectivityError(error: unknown): boolean {
+    const code = (error as { code?: string } | null)?.code;
+    if (code === "P1000" || code === "P1001" || code === "P1008" || code === "P1017") {
+      return true;
+    }
+
+    const message = error instanceof Error ? error.message : "";
+    return (
+      message.includes("Authentication failed against the database server") ||
+      message.includes("Can't reach database server") ||
+      message.includes("database server")
+    );
+  }
+
+  private getFallbackPermissions(role: Role): string[] {
+    const permissions = new Set<string>();
+    for (const [key, rules] of Object.entries(permissionMatrix)) {
+      if ((rules as Record<Role, boolean>)[role] === true) {
+        permissions.add(FALLBACK_PERMISSION_KEY_MAP[key] ?? key.toUpperCase());
+      }
+    }
+    return Array.from(permissions);
+  }
+
+  private buildFallbackUserDto(user: { id: string; tenantId: string; fullName: string; email: string; role: Role; status: string; locationIds: string[] }) {
+    return {
+      id: user.id,
+      fullName: user.fullName,
+      email: user.email,
+      role: user.role,
+      roleLabel: roleLabels[user.role],
+      tenantId: user.tenantId,
+      status: user.status,
+      effectivePermissions: this.getFallbackPermissions(user.role),
+      assignedLocations: user.locationIds
+    };
+  }
+
+  private async loginFromFallbackStore(input: LoginInput, tenantId: string): Promise<LoginResponseDTO> {
+    const user =
+      store.users.find((entry) => entry.email.toLowerCase() === input.email.toLowerCase() && entry.tenantId === tenantId) ??
+      store.users.find((entry) => entry.email.toLowerCase() === input.email.toLowerCase());
+
+    if (!user || !verifyPassword(input.password, user.passwordHash)) {
+      throw new ForbiddenError("Invalid credentials");
+    }
+
+    if (user.status === "disabled") {
+      throw new ForbiddenError("Your account has been deactivated. Please contact your organization owner.");
+    }
+
+    const token = generateAccessToken({
+      sub: user.id,
+      role: user.role,
+      tenantId: user.tenantId,
+      tokenVersion: 0
+    });
+
+    return {
+      token,
+      user: this.buildFallbackUserDto({
+        id: user.id,
+        tenantId: user.tenantId,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        locationIds: user.locationIds
+      })
+    };
+  }
+
+  private async googleLoginFromFallbackStore(
+    email: string,
+    fullName: string,
+    googleId: string
+  ): Promise<LoginResponseDTO | { isNewUser: true; email: string; fullName: string; googleId: string }> {
+    const user = store.users.find((entry) => entry.email.toLowerCase() === email.toLowerCase());
+
+    if (!user) {
+      return { isNewUser: true, email, fullName, googleId };
+    }
+
+    if (user.status === "disabled") {
+      throw new ForbiddenError("Your account has been deactivated. Please contact your organization owner.");
+    }
+
+    const token = generateAccessToken({
+      sub: user.id,
+      role: user.role,
+      tenantId: user.tenantId,
+      tokenVersion: 0
+    });
+
+    return {
+      token,
+      user: this.buildFallbackUserDto({
+        id: user.id,
+        tenantId: user.tenantId,
+        fullName: user.fullName,
+        email: user.email,
+        role: user.role,
+        status: user.status,
+        locationIds: user.locationIds
+      })
+    };
+  }
 
   private async getAssignedLocations(userId: string): Promise<string[]> {
     const locations = await prisma.userLocation.findMany({
@@ -39,76 +165,84 @@ export class AuthService {
     userAgent: string,
     ipAddress: string
   ): Promise<LoginResponseDTO> {
-    let user = await this.repository.findUserByEmail(input.email, tenantId);
-    if (!user) {
-      user = await this.repository.findUserByEmailGlobally(input.email);
-    }
-
-    if (!user || !verifyPassword(input.password, user.passwordHash)) {
-      throw new ForbiddenError("Invalid credentials");
-    }
-
-    if (user.status === "DISABLED") {
-      throw new ForbiddenError("Your account has been deactivated. Please contact your organization owner.");
-    }
-
-    const token = generateAccessToken({
-      sub: user.id,
-      role: user.role.code,
-      tenantId: user.tenantId,
-      tokenVersion: user.tokenVersion
-    });
-
-    const refreshToken = createId("ref");
-    const sessionId = createId("sess");
-
-    // Write UserSession record
     try {
-      await prisma.userSession.create({
-        data: {
-          id: sessionId,
-          tenantId: user.tenantId,
-          userId: user.id,
-          sessionTokenHash: refreshToken,
-          deviceName: parseDeviceName(userAgent),
-          ipAddress,
-          userAgent,
-          isActive: true,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          lastSeenAt: new Date()
-        }
+      let user = await this.repository.findUserByEmail(input.email, tenantId);
+      if (!user) {
+        user = await this.repository.findUserByEmailGlobally(input.email);
+      }
+
+      if (!user || !verifyPassword(input.password, user.passwordHash)) {
+        throw new ForbiddenError("Invalid credentials");
+      }
+
+      if (user.status === "DISABLED") {
+        throw new ForbiddenError("Your account has been deactivated. Please contact your organization owner.");
+      }
+
+      const token = generateAccessToken({
+        sub: user.id,
+        role: user.role.code,
+        tenantId: user.tenantId,
+        tokenVersion: user.tokenVersion
       });
 
-      // Update user lastLoginAt
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() }
-      });
+      const refreshToken = createId("ref");
+      const sessionId = createId("sess");
 
-      // Write Audit Log
-      await prisma.auditLog.create({
-        data: {
-          id: createId("audit"),
-          tenantId: user.tenantId,
-          actorUserId: user.id,
-          module: "auth",
-          action: "login",
-          summary: `User ${user.fullName} logged in successfully`,
-          entityType: "user",
-          severity: "INFO"
-        }
-      });
-    } catch (sessionErr) {
-      console.error("Failed to track session log or last login:", sessionErr);
+      // Write UserSession record
+      try {
+        await prisma.userSession.create({
+          data: {
+            id: sessionId,
+            tenantId: user.tenantId,
+            userId: user.id,
+            sessionTokenHash: refreshToken,
+            deviceName: parseDeviceName(userAgent),
+            ipAddress,
+            userAgent,
+            isActive: true,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            lastSeenAt: new Date()
+          }
+        });
+
+        // Update user lastLoginAt
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() }
+        });
+
+        // Write Audit Log
+        await prisma.auditLog.create({
+          data: {
+            id: createId("audit"),
+            tenantId: user.tenantId,
+            actorUserId: user.id,
+            module: "auth",
+            action: "login",
+            summary: `User ${user.fullName} logged in successfully`,
+            entityType: "user",
+            severity: "INFO"
+          }
+        });
+      } catch (sessionErr) {
+        console.error("Failed to track session log or last login:", sessionErr);
+      }
+
+      const effective = await PermissionService.getEffectivePermissions(user.id, user.tenantId);
+      const locations = await this.getAssignedLocations(user.id);
+      return {
+        token,
+        refreshToken,
+        user: toUserDTO(user, effective, locations)
+      };
+    } catch (error) {
+      if (this.isDatabaseConnectivityError(error)) {
+        return this.loginFromFallbackStore(input, tenantId);
+      }
+
+      throw error;
     }
-
-    const effective = await PermissionService.getEffectivePermissions(user.id, user.tenantId);
-    const locations = await this.getAssignedLocations(user.id);
-    return {
-      token,
-      refreshToken,
-      user: toUserDTO(user, effective, locations)
-    };
   }
 
   async getProfile(userId: string, tenantId: string) {
@@ -302,97 +436,105 @@ export class AuthService {
     const fullName = payload.name || "Google User";
     const googleId = payload.sub; // Google User ID
 
-    // Find user globally
-    let user = await prisma.user.findFirst({
-      where: { email: { equals: email, mode: "insensitive" } },
-      include: { role: true }
-    });
+    try {
+      // Find user globally
+      let user = await prisma.user.findFirst({
+        where: { email: { equals: email, mode: "insensitive" } },
+        include: { role: true }
+      });
 
-    if (user) {
-      if (user.status === "DISABLED") {
-        throw new ForbiddenError("Your account has been deactivated. Please contact your organization owner.");
+      if (user) {
+        if (user.status === "DISABLED") {
+          throw new ForbiddenError("Your account has been deactivated. Please contact your organization owner.");
+        }
+
+        // Link Google ID if not already linked (preserve existing account and avoid duplicates)
+        const metadata = (user.metadata as any) || {};
+        if (metadata.googleId !== googleId) {
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              metadata: {
+                ...metadata,
+                googleId
+              }
+            }
+          });
+        }
+      } else {
+        // User does not exist, so we avoid creating a temporary user.
+        // Return a special payload so frontend can complete onboarding before creation.
+        return {
+          isNewUser: true,
+          email,
+          fullName,
+          googleId
+        } as any;
       }
 
-      // Link Google ID if not already linked (preserve existing account and avoid duplicates)
-      const metadata = (user.metadata as any) || {};
-      if (metadata.googleId !== googleId) {
-        await prisma.user.update({
-          where: { id: user.id },
+      // Log the user in and return standard tokens
+      const token = generateAccessToken({
+        sub: user.id,
+        role: user.role.code,
+        tenantId: user.tenantId,
+        tokenVersion: user.tokenVersion
+      });
+
+      const refreshToken = createId("ref");
+      const sessionId = createId("sess");
+
+      try {
+        await prisma.userSession.create({
           data: {
-            metadata: {
-              ...metadata,
-              googleId
-            }
+            id: sessionId,
+            tenantId: user.tenantId,
+            userId: user.id,
+            sessionTokenHash: refreshToken,
+            deviceName: parseDeviceName(userAgent),
+            ipAddress,
+            userAgent,
+            isActive: true,
+            expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
+            lastSeenAt: new Date()
           }
         });
+
+        await prisma.user.update({
+          where: { id: user.id },
+          data: { lastLoginAt: new Date() }
+        });
+
+        // Write Audit Log
+        await prisma.auditLog.create({
+          data: {
+            id: createId("audit"),
+            tenantId: user.tenantId,
+            actorUserId: user.id,
+            module: "auth",
+            action: "login_google",
+            summary: `User ${user.fullName} logged in successfully via Google`,
+            entityType: "user",
+            severity: "INFO"
+          }
+        });
+      } catch (sessionErr) {
+        console.error("Failed to track session log or last login for Google login:", sessionErr);
       }
-    } else {
-      // User does not exist, so we avoid creating a temporary user.
-      // Return a special payload so frontend can complete onboarding before creation.
+
+      const effective = await PermissionService.getEffectivePermissions(user.id, user.tenantId);
+      const locations = await this.getAssignedLocations(user.id);
       return {
-        isNewUser: true,
-        email,
-        fullName,
-        googleId
-      } as any;
+        token,
+        refreshToken,
+        user: toUserDTO(user, effective, locations)
+      };
+    } catch (error) {
+      if (this.isDatabaseConnectivityError(error)) {
+        return this.googleLoginFromFallbackStore(email, fullName, googleId) as any;
+      }
+
+      throw error;
     }
-
-    // Log the user in and return standard tokens
-    const token = generateAccessToken({
-      sub: user.id,
-      role: user.role.code,
-      tenantId: user.tenantId,
-      tokenVersion: user.tokenVersion
-    });
-
-    const refreshToken = createId("ref");
-    const sessionId = createId("sess");
-
-    try {
-      await prisma.userSession.create({
-        data: {
-          id: sessionId,
-          tenantId: user.tenantId,
-          userId: user.id,
-          sessionTokenHash: refreshToken,
-          deviceName: parseDeviceName(userAgent),
-          ipAddress,
-          userAgent,
-          isActive: true,
-          expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000), // 30 days
-          lastSeenAt: new Date()
-        }
-      });
-
-      await prisma.user.update({
-        where: { id: user.id },
-        data: { lastLoginAt: new Date() }
-      });
-
-      // Write Audit Log
-      await prisma.auditLog.create({
-        data: {
-          id: createId("audit"),
-          tenantId: user.tenantId,
-          actorUserId: user.id,
-          module: "auth",
-          action: "login_google",
-          summary: `User ${user.fullName} logged in successfully via Google`,
-          entityType: "user",
-          severity: "INFO"
-        }
-      });
-    } catch (sessionErr) {
-      console.error("Failed to track session log or last login for Google login:", sessionErr);
-    }
-
-    const effective = await PermissionService.getEffectivePermissions(user.id, user.tenantId);
-    const locations = await this.getAssignedLocations(user.id);
-    return {
-      token,
-      refreshToken,
-      user: toUserDTO(user, effective, locations)
-    };
   }
 
   async refreshSession(

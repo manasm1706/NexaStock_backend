@@ -121,12 +121,13 @@ export class TenantService {
       });
 
       // Build workspaceSettings based on chosen features
-      const features = input.selectedFeatures || ["inventory", "pos", "analytics", "ai", "stores"];
+      const features = input.selectedFeatures || ["inventory", "pos", "analytics", "ai", "stores", "dealers"];
       
       const sidebarOrder = ["dashboard"];
       if (features.includes("inventory")) sidebarOrder.push("inventory");
       if (features.includes("ai")) sidebarOrder.push("ai");
       if (features.includes("stores")) sidebarOrder.push("stores");
+      if (features.includes("dealers")) sidebarOrder.push("dealers");
       if (features.includes("pos")) sidebarOrder.push("pos");
       if (features.includes("analytics")) sidebarOrder.push("analytics");
       sidebarOrder.push("settings");

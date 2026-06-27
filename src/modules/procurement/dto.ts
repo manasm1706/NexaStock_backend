@@ -3,6 +3,7 @@ export interface SupplierDTO {
   tenantId: string;
   name: string;
   code: string;
+  productIds?: string[];
   contactName: string;
   phone: string;
   email: string;

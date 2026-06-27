@@ -431,7 +431,7 @@ export class SettingsController {
 
     // Role-based defaults
     const roleCode = user.role.code;
-    let sidebarOrder = ["dashboard", "inventory", "ai", "stores", "pos", "analytics", "settings"];
+    let sidebarOrder = ["dashboard", "inventory", "ai", "stores", "dealers", "pos", "analytics", "settings"];
     let sidebarFavorites: string[] = [];
     let sidebarHidden: string[] = [];
     let activeLayoutName = "Default Layout";

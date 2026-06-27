@@ -592,12 +592,152 @@ export class AIService {
     const now = new Date();
     
     // Fetch base parameters to resolve query
-    const [products, inventories, sales, locations] = await Promise.all([
+    const [products, inventories, sales, locations, suppliers] = await Promise.all([
       this.repository.getProducts(tenantId),
       this.repository.getBalances(tenantId),
       this.repository.getCompletedSales(tenantId),
-      this.repository.getLocations(tenantId)
+      this.repository.getLocations(tenantId),
+      prisma.supplier.findMany({
+        where: { tenantId, deletedAt: null },
+        include: { contacts: true }
+      })
     ]);
+
+    const apiKey = process.env.GROQ_API_KEY;
+    if (apiKey) {
+      try {
+        // Format the database context for Groq
+        const contextSummary = {
+          tenantId,
+          currentTime: now.toISOString(),
+          productsSummary: products.map(p => {
+            const meta = (p.metadata as Record<string, any>) || {};
+            return {
+              id: p.id,
+              name: p.name,
+              sku: p.sku,
+              reorderLevel: p.reorderLevel,
+              reorderQuantity: p.reorderQuantity,
+              purchasePrice: meta.purchasePrice || 100,
+              sellingPrice: meta.sellingPrice || 150
+            };
+          }),
+          inventoryBalances: inventories.map(i => {
+            const prod = products.find(p => p.id === i.productId);
+            return {
+              productName: prod?.name || "Unknown",
+              sku: prod?.sku || "N/A",
+              qtyOnHand: i.qtyOnHand,
+              locationName: i.location?.name || "Unknown"
+            };
+          }),
+          suppliersList: suppliers.map(s => ({
+            name: s.name,
+            code: s.supplierCode,
+            gstNumber: s.gstNumber || "N/A",
+            phone: s.contacts.find(c => c.isPrimary)?.phone || s.contacts[0]?.phone || "N/A",
+            email: s.contacts.find(c => c.isPrimary)?.email || s.contacts[0]?.email || "N/A"
+          })),
+          recentSalesSummary: sales.slice(-15).map(s => ({
+            id: s.id,
+            grandTotal: Number(s.grandTotal),
+            saleDate: s.saleDate,
+            location: locations.find(l => l.id === s.locationId)?.name || "Unknown"
+          }))
+        };
+
+        const systemPrompt = `You are NexaStock Copilot, an AI retail operations brain and assistant for NexaStock.
+You have real-time access to the store's database ledger through the JSON context below.
+Provide a clear, detailed, and professional answer to the user's question.
+If the user asks to write an order, email draft, or Whatsapp message, formulate a neat template with details from the database.
+
+Database Context:
+${JSON.stringify(contextSummary, null, 2)}
+
+Provide natural, helpful answers. Use clean formatting and bullet points where helpful.`;
+
+        const response = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Authorization": `Bearer ${apiKey}`
+          },
+          body: JSON.stringify({
+            model: "llama-3.3-70b-versatile",
+            messages: [
+              { role: "system", content: systemPrompt },
+              { role: "user", content: queryStr }
+            ],
+            temperature: 0.3
+          })
+        });
+
+        if (response.ok) {
+          const resJson = await response.json() as any;
+          const answer = resJson.choices?.[0]?.message?.content;
+          if (answer) {
+            // Determine type of query dynamically for UI tables
+            let queryType = "general";
+            let data: any[] = [];
+
+            if (q.includes("low") || q.includes("stockout") || q.includes("shortage")) {
+              queryType = "low_stock";
+              data = inventories
+                .filter(i => {
+                  const prod = products.find(p => p.id === i.productId);
+                  return i.qtyOnHand <= (prod?.reorderLevel || 0);
+                })
+                .map(i => {
+                  const prod = products.find(p => p.id === i.productId);
+                  return {
+                    name: prod?.name,
+                    sku: prod?.sku,
+                    qtyOnHand: i.qtyOnHand,
+                    reorderLevel: prod?.reorderLevel,
+                    location: i.location?.name
+                  };
+                });
+            } else if (q.includes("best") || q.includes("top") || q.includes("sell")) {
+              queryType = "product_rankings";
+              // Calculate real rank
+              const prodPerf = new Map<string, number>();
+              sales.forEach(sale => {
+                const items = (sale as any).items || [];
+                items.forEach((item: any) => {
+                  prodPerf.set(item.productId, (prodPerf.get(item.productId) || 0) + item.quantity);
+                });
+              });
+              data = Array.from(prodPerf.entries()).map(([prodId, qty]) => {
+                const prod = products.find(p => p.id === prodId);
+                return {
+                  name: prod?.name,
+                  sku: prod?.sku,
+                  qty
+                };
+              }).sort((a, b) => b.qty - a.qty);
+            } else if (q.includes("dealer") || q.includes("supplier")) {
+              queryType = "dealers";
+              data = suppliers.map(s => ({
+                name: s.name,
+                code: s.supplierCode,
+                phone: s.contacts[0]?.phone || "N/A"
+              }));
+            }
+
+            return {
+              answer,
+              queryType,
+              data
+            };
+          }
+        } else {
+          const errorMsg = await response.text();
+          console.error("Groq API response error:", errorMsg);
+        }
+      } catch (err) {
+        console.error("Failed calling Groq API:", err);
+      }
+    }
 
     const getProductPrices = (prod: any) => {
       const meta = (prod?.metadata as Record<string, any>) || {};

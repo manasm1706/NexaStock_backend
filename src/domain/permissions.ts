@@ -20,7 +20,25 @@ export const permissionMatrix = {
     cashier: false,
     supplier: false
   },
+  inventoryRead: {
+    super_admin: true,
+    business_owner: true,
+    operations_manager: true,
+    warehouse_manager: true,
+    store_manager: true,
+    cashier: false,
+    supplier: false
+  },
   inventoryAdjustments: {
+    super_admin: true,
+    business_owner: true,
+    operations_manager: true,
+    warehouse_manager: true,
+    store_manager: true,
+    cashier: false,
+    supplier: false
+  },
+  warehouseManagement: {
     super_admin: true,
     business_owner: true,
     operations_manager: true,
