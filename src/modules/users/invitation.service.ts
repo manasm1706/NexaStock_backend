@@ -19,6 +19,29 @@ export interface InvitationLedgerEntry {
   permissionOverrides: { permissionId: string; allowed: boolean }[];
   department: string | null;
   reportsTo: string | null;
+  userProfile: {
+    jobTitle?: string;
+    dateOfBirth?: string;
+    phoneNumber?: string;
+    emergencyContact?: string;
+    emergencyPhone?: string;
+    hireDate?: string;
+    employmentType?: string;
+    workSchedule?: string;
+    probationEndDate?: string;
+    managerUserId?: string;
+    skills?: string[];
+    certifications?: string[];
+    nationalId?: string;
+    passportNumber?: string;
+    taxId?: string;
+    bankAccountNumber?: string;
+    bankName?: string;
+    bankBranch?: string;
+    languagesSpoken?: string[];
+    profileImageUrl?: string;
+    notes?: string;
+  } | null;
   token: string;
   status: 'CREATED' | 'EMAIL_SENT' | 'DELIVERED' | 'OPENED' | 'EXPIRED' | 'RESENT' | 'ACCEPTED' | 'REVOKED' | 'FAILED';
   expiresAt: string;
@@ -42,6 +65,29 @@ export class InvitationService {
       permissionOverrides?: { permissionId: string; allowed: boolean }[];
       department?: string;
       reportsTo?: string;
+      userProfile?: {
+        jobTitle?: string;
+        dateOfBirth?: string;
+        phoneNumber?: string;
+        emergencyContact?: string;
+        emergencyPhone?: string;
+        hireDate?: string;
+        employmentType?: string;
+        workSchedule?: string;
+        probationEndDate?: string;
+        managerUserId?: string;
+        skills?: string[];
+        certifications?: string[];
+        nationalId?: string;
+        passportNumber?: string;
+        taxId?: string;
+        bankAccountNumber?: string;
+        bankName?: string;
+        bankBranch?: string;
+        languagesSpoken?: string[];
+        profileImageUrl?: string;
+        notes?: string;
+      };
     },
     requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }
   ) {
@@ -106,6 +152,7 @@ export class InvitationService {
       permissionOverrides: extra?.permissionOverrides || [],
       department: extra?.department || null,
       reportsTo: extra?.reportsTo || null,
+      userProfile: extra?.userProfile || null,
       token: hashedToken,
       status: "CREATED",
       expiresAt: expiresAt.toISOString(),
@@ -312,49 +359,85 @@ export class InvitationService {
 
     // Create the User record in database
     const userId = createId("user");
-    const user = await prisma.user.create({
-      data: {
-        id: userId,
-        tenantId: details.tenantId,
-        roleId: invite.roleId,
-        email: invite.email,
-        fullName: invite.fullName,
-        passwordHash,
-        status: "ACTIVE",
-        userScope: "INTERNAL",
-        tokenVersion: 1,
-        metadata: {
-          department: invite.department,
-          reportsTo: invite.reportsTo
-        }
-      },
-      include: { role: true }
+    const user = await prisma.$transaction(async (tx) => {
+      const newUser = await tx.user.create({
+        data: {
+          id: userId,
+          tenantId: details.tenantId,
+          roleId: invite.roleId,
+          email: invite.email,
+          fullName: invite.fullName,
+          passwordHash,
+          status: "ACTIVE",
+          userScope: "INTERNAL",
+          tokenVersion: 1,
+          metadata: {
+            department: invite.department,
+            reportsTo: invite.reportsTo
+          }
+        },
+        include: { role: true }
+      });
+
+      // Create UserProfile if provided
+      if (invite.userProfile) {
+        await tx.userProfile.create({
+          data: {
+            id: createId("uprof"),
+            tenantId: details.tenantId,
+            userId,
+            jobTitle: invite.userProfile.jobTitle || null,
+            dateOfBirth: invite.userProfile.dateOfBirth ? new Date(invite.userProfile.dateOfBirth) : null,
+            phoneNumber: invite.userProfile.phoneNumber || null,
+            emergencyContact: invite.userProfile.emergencyContact || null,
+            emergencyPhone: invite.userProfile.emergencyPhone || null,
+            hireDate: invite.userProfile.hireDate ? new Date(invite.userProfile.hireDate) : null,
+            employmentType: invite.userProfile.employmentType || null,
+            workSchedule: invite.userProfile.workSchedule || null,
+            probationEndDate: invite.userProfile.probationEndDate ? new Date(invite.userProfile.probationEndDate) : null,
+            managerUserId: invite.userProfile.managerUserId || null,
+            skills: invite.userProfile.skills || null,
+            certifications: invite.userProfile.certifications || null,
+            nationalId: invite.userProfile.nationalId || null,
+            passportNumber: invite.userProfile.passportNumber || null,
+            taxId: invite.userProfile.taxId || null,
+            bankAccountNumber: invite.userProfile.bankAccountNumber || null,
+            bankName: invite.userProfile.bankName || null,
+            bankBranch: invite.userProfile.bankBranch || null,
+            languagesSpoken: invite.userProfile.languagesSpoken || null,
+            profileImageUrl: invite.userProfile.profileImageUrl || null,
+            notes: invite.userProfile.notes || null
+          }
+        });
+      }
+
+      // Create location records
+      if (invite.assignedLocations && invite.assignedLocations.length > 0) {
+        await tx.userLocation.createMany({
+          data: invite.assignedLocations.map((locId: string) => ({
+            id: createId("uloc"),
+            tenantId: details.tenantId,
+            userId,
+            locationId: locId
+          }))
+        });
+      }
+
+      // Create permission overrides
+      if (invite.permissionOverrides && invite.permissionOverrides.length > 0) {
+        await tx.userPermissionOverride.createMany({
+          data: invite.permissionOverrides.map((ov: any) => ({
+            id: createId("upov"),
+            tenantId: details.tenantId,
+            userId,
+            permissionId: ov.permissionId,
+            allowed: ov.allowed
+          }))
+        });
+      }
+
+      return newUser;
     });
-
-    // Create location records
-    if (invite.assignedLocations && invite.assignedLocations.length > 0) {
-      await prisma.userLocation.createMany({
-        data: invite.assignedLocations.map((locId: string) => ({
-          id: createId("uloc"),
-          tenantId: details.tenantId,
-          userId,
-          locationId: locId
-        }))
-      });
-    }
-
-    // Create permission overrides
-    if (invite.permissionOverrides && invite.permissionOverrides.length > 0) {
-      await prisma.userPermissionOverride.createMany({
-        data: invite.permissionOverrides.map((ov: any) => ({
-          id: createId("upov"),
-          tenantId: details.tenantId,
-          userId,
-          permissionId: ov.permissionId,
-          allowed: ov.allowed
-        }))
-      });
-    }
 
     // Update invite status in ledger to ACCEPTED
     invite.status = "ACCEPTED";

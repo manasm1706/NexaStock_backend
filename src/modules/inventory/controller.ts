@@ -5,20 +5,24 @@ export class InventoryController {
   private readonly service = new InventoryService();
 
   balances = async (context: RequestContext) => {
-    return this.service.getBalances(context.tenantId, context.actorId, context.role);
+    const locationIds = context.isGlobalAccess ? undefined : context.assignedLocationIds;
+    return this.service.getBalances(context.tenantId, locationIds);
   };
 
   movements = async (context: RequestContext) => {
-    return this.service.getMovements(context.tenantId, context.actorId, context.role);
+    const locationIds = context.isGlobalAccess ? undefined : context.assignedLocationIds;
+    return this.service.getMovements(context.tenantId, locationIds);
   };
 
   adjust = async (context: RequestContext) => {
     const actorId = context.actorId!;
-    return this.service.adjustInventory(context.body as any, actorId, context.role!, context.tenantId);
+    const locationIds = context.isGlobalAccess ? undefined : context.assignedLocationIds;
+    return this.service.adjustInventory(context.body as any, actorId, context.role!, context.tenantId, locationIds);
   };
 
   import = async (context: RequestContext) => {
     const actorId = context.actorId!;
-    return this.service.bulkImportInventory(context.body as any, actorId, context.role!, context.tenantId);
+    const locationIds = context.isGlobalAccess ? undefined : context.assignedLocationIds;
+    return this.service.bulkImportInventory(context.body as any, actorId, context.role!, context.tenantId, locationIds);
   };
 }

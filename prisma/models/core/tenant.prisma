@@ -127,6 +127,7 @@ model Tenant {
   userSessions              UserSession[]
   userLocations             UserLocation[]
   userPermissionOverrides   UserPermissionOverride[]
+  userProfiles              UserProfile[]
 
   @@index([slug])
   @@index([status, operationalModel])

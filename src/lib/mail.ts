@@ -9,6 +9,12 @@ const SMTP_FROM = process.env.SMTP_FROM || "NexaStock <no-reply@nexastock.com>";
 let transporter: nodemailer.Transporter | null = null;
 
 if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
+  console.log("📧 [EMAIL] Initializing SMTP transporter...");
+  console.log(`   Host: ${SMTP_HOST}`);
+  console.log(`   Port: ${SMTP_PORT}`);
+  console.log(`   User: ${SMTP_USER}`);
+  console.log(`   Pass: ${SMTP_PASS.substring(0, 4)}****`);
+  
   transporter = nodemailer.createTransport({
     host: SMTP_HOST,
     port: SMTP_PORT,
@@ -18,6 +24,12 @@ if (SMTP_HOST && SMTP_USER && SMTP_PASS) {
       pass: SMTP_PASS
     }
   });
+  console.log("✓ [EMAIL] SMTP transporter initialized successfully");
+} else {
+  console.log("⚠️  [EMAIL] SMTP credentials not configured - using mock mode");
+  console.log(`   SMTP_HOST: ${SMTP_HOST || 'NOT SET'}`);
+  console.log(`   SMTP_USER: ${SMTP_USER || 'NOT SET'}`);
+  console.log(`   SMTP_PASS: ${SMTP_PASS ? 'SET' : 'NOT SET'}`);
 }
 
 export interface MailOptions {
@@ -39,15 +51,18 @@ export async function sendMail(options: MailOptions): Promise<boolean> {
   }
 
   try {
-    await transporter.sendMail({
+    console.log(`[EMAIL] Attempting to send email to: ${options.to}`);
+    const result = await transporter.sendMail({
       from: SMTP_FROM,
       to: options.to,
       subject: options.subject,
       html: options.html
     });
+    console.log(`[EMAIL] ✓ Email sent successfully to ${options.to}. MessageId: ${result.messageId}`);
     return true;
-  } catch (err) {
-    console.error("SMTP sending failed:", err);
+  } catch (err: any) {
+    console.error("[EMAIL] ✗ SMTP sending failed:", err.message);
+    console.error("[EMAIL] Full error:", err);
     throw err;
   }
 }

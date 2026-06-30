@@ -7,8 +7,14 @@ import type { CreateLocationInput } from "./schema";
 export class LocationsService {
   private readonly repository = new LocationsRepository();
 
-  async getLocationsList(tenantId: string) {
-    const locations = await this.repository.findLocations(tenantId);
+  async getLocationsList(tenantId: string, locationIds?: string[]) {
+    let locations = await this.repository.findLocations(tenantId);
+    
+    // Filter by assigned locations if user is location-scoped
+    if (locationIds && locationIds.length > 0) {
+      locations = locations.filter(loc => locationIds.includes(loc.id));
+    }
+    
     return locations.map(toLocationDTO);
   }
 

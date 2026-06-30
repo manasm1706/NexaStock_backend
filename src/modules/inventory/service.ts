@@ -2,43 +2,28 @@ import { InventoryRepository } from "./repository";
 import { toInventoryBalanceDTO, toInventoryMovementDTO } from "./mapper";
 import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
-import { resolveLocationScope, buildAuditMetadata } from "../../lib/locationScoper";
+import { buildAuditMetadata } from "../../lib/locationScoper";
 import { ForbiddenError } from "../../lib/errors";
 import type { AdjustInventoryInput, ImportInventoryInput } from "./schema";
 
 export class InventoryService {
   private readonly repository = new InventoryRepository();
 
-  async getBalances(tenantId: string, actorId?: string, roleCode?: string) {
-    let locationIds: string[] | undefined = undefined;
-    if (actorId && roleCode) {
-      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
-      if (scope.isRestricted) {
-        locationIds = scope.locationIds;
-      }
-    }
+  async getBalances(tenantId: string, locationIds?: string[]) {
     const balances = await this.repository.findBalances(tenantId, locationIds);
     return balances.map(toInventoryBalanceDTO);
   }
 
-  async getMovements(tenantId: string, actorId?: string, roleCode?: string) {
-    let locationIds: string[] | undefined = undefined;
-    if (actorId && roleCode) {
-      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
-      if (scope.isRestricted) {
-        locationIds = scope.locationIds;
-      }
-    }
+  async getMovements(tenantId: string, locationIds?: string[]) {
     const movements = await this.repository.findMovements(tenantId, locationIds);
     return movements.map(toInventoryMovementDTO);
   }
 
-  async adjustInventory(input: AdjustInventoryInput, actorId: string, roleCode: string, tenantId: string) {
+  async adjustInventory(input: AdjustInventoryInput, actorId: string, roleCode: string, tenantId: string, locationIds?: string[]) {
     const { productId, locationId, quantity, reason } = input;
 
     // Check location permission scope
-    const scope = await resolveLocationScope(actorId, tenantId, roleCode);
-    if (scope.isRestricted && !scope.locationIds.includes(locationId)) {
+    if (locationIds && !locationIds.includes(locationId)) {
       throw new ForbiddenError("You do not have permission to adjust inventory at this location");
     }
 
@@ -79,12 +64,11 @@ export class InventoryService {
     return toInventoryMovementDTO(result);
   }
 
-  async bulkImportInventory(input: ImportInventoryInput, actorId: string, roleCode: string, tenantId: string) {
+  async bulkImportInventory(input: ImportInventoryInput, actorId: string, roleCode: string, tenantId: string, locationIds?: string[]) {
     const { locationId, items } = input;
 
     // Check location permission scope
-    const scope = await resolveLocationScope(actorId, tenantId, roleCode);
-    if (scope.isRestricted && !scope.locationIds.includes(locationId)) {
+    if (locationIds && !locationIds.includes(locationId)) {
       throw new ForbiddenError("You do not have permission to import inventory at this location");
     }
 

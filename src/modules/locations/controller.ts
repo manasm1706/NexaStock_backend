@@ -5,7 +5,8 @@ export class LocationsController {
   private readonly service = new LocationsService();
 
   list = async (context: RequestContext) => {
-    return this.service.getLocationsList(context.tenantId);
+    const locationIds = context.isGlobalAccess ? undefined : context.assignedLocationIds;
+    return this.service.getLocationsList(context.tenantId, locationIds);
   };
 
   create = async (context: RequestContext) => {

@@ -641,5 +641,106 @@ export class SettingsController {
 
     return result;
   };
+
+  // ==========================================
+  // 4. Permission Matrix Management (Task 10)
+  // ==========================================
+
+  getPermissionMatrix = async (context: RequestContext) => {
+    const tenantId = context.tenantId;
+
+    const roles = await prisma.role.findMany({
+      where: { tenantId },
+      include: { permissions: { include: { permission: true } } },
+      orderBy: { createdAt: "asc" }
+    });
+
+    const allPermissions = await prisma.permission.findMany({
+      where: { tenantId },
+      orderBy: { module: "asc" }
+    });
+
+    const matrix = roles.map(role => {
+      const permMap: Record<string, boolean> = {};
+      for (const rp of role.permissions) {
+        permMap[rp.permission.code] = rp.allowed;
+      }
+      return {
+        roleId: role.id,
+        roleName: role.name,
+        roleCode: role.code,
+        permissions: allPermissions.map(p => ({
+          permissionId: p.id,
+          code: p.code,
+          name: p.name,
+          module: p.module,
+          allowed: permMap[p.code] || false
+        }))
+      };
+    });
+
+    return { roles: matrix, permissions: allPermissions };
+  };
+
+  togglePermission = async (context: RequestContext) => {
+    const tenantId = context.tenantId;
+    const body = (context.body as { roleId?: string; permissionId?: string; allowed?: boolean }) || {};
+
+    if (!body.roleId || !body.permissionId) {
+      throw new ValidationError("roleId and permissionId are required.");
+    }
+
+    const role = await prisma.role.findFirst({
+      where: { id: body.roleId, tenantId }
+    });
+    if (!role) {
+      throw new NotFoundError("Role not found.");
+    }
+
+    const permission = await prisma.permission.findFirst({
+      where: { id: body.permissionId, tenantId }
+    });
+    if (!permission) {
+      throw new NotFoundError("Permission not found.");
+    }
+
+    const existing = await prisma.rolePermission.findFirst({
+      where: { tenantId, roleId: body.roleId, permissionId: body.permissionId }
+    });
+
+    if (existing) {
+      await prisma.rolePermission.update({
+        where: { id: existing.id },
+        data: { allowed: body.allowed !== false }
+      });
+    } else {
+      await prisma.rolePermission.create({
+        data: {
+          id: createId("rp"),
+          tenantId,
+          roleId: body.roleId,
+          permissionId: body.permissionId,
+          allowed: body.allowed !== false
+        }
+      });
+    }
+
+    // Write Audit Log
+    await prisma.auditLog.create({
+      data: {
+        id: createId("audit"),
+        tenantId,
+        actorUserId: context.actorId || null,
+        module: "settings",
+        action: "permission_toggled",
+        summary: `Toggled permission ${permission.name} for role ${role.name} to ${body.allowed !== false}`,
+        entityType: "role",
+        severity: "INFO",
+        afterData: { roleId: body.roleId, permissionId: body.permissionId, allowed: body.allowed }
+      }
+    });
+
+    return { success: true, message: "Permission updated successfully." };
+  };
 }
 

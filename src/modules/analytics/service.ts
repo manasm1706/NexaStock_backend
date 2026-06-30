@@ -2,7 +2,6 @@ import { AnalyticsRepository } from "./repository";
 import type { AnalyticsDashboardDTO, TopProductDTO, ProductVelocityDTO, AlertDTO, ValueNameDTO, TrendPointDTO, CategoryMetricDTO, LowStockItemDTO, DeadStockItemDTO, DrillDownItemDTO } from "./dto";
 import { toAlertDTO } from "./mapper";
 import { prisma } from "../../lib/db";
-import { resolveLocationScope } from "../../lib/locationScoper";
 
 export class AnalyticsService {
   private readonly repository = new AnalyticsRepository();
@@ -27,18 +26,12 @@ export class AnalyticsService {
     tenantId: string,
     startDateStr?: string,
     endDateStr?: string,
-    actorId?: string,
-    roleCode?: string
+    locationIds?: string[]
   ): Promise<AnalyticsDashboardDTO> {
-    let locationIds: string[] | undefined = undefined;
     let cacheKey = `${tenantId}:${startDateStr || ""}:${endDateStr || ""}`;
 
-    if (actorId && roleCode) {
-      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
-      if (scope.isRestricted) {
-        locationIds = scope.locationIds;
-        cacheKey = `${tenantId}:${actorId}:${startDateStr || ""}:${endDateStr || ""}`;
-      }
+    if (locationIds) {
+      cacheKey = `${tenantId}:${locationIds.join(",")}:${startDateStr || ""}:${endDateStr || ""}`;
     }
 
     const nowMs = Date.now();

@@ -4,9 +4,11 @@ import { ValidationError, NotFoundError } from "../../lib/errors";
 import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
 import { PermissionService } from "./PermissionService";
+import { InvitationService } from "./invitation.service";
 
 export class UsersService {
   private readonly repository = new UsersRepository();
+  private readonly invitationService = new InvitationService();
 
   async getUsersList(tenantId: string) {
     const users = await this.repository.findUsers(tenantId);
@@ -62,6 +64,9 @@ export class UsersService {
     }
 
     const updated = await this.repository.updateUserRole(id, roleId, tenantId);
+
+    // Clear permission cache
+    PermissionService.clearCache(id, tenantId);
 
     // Audit Log
     await prisma.auditLog.create({
@@ -151,6 +156,14 @@ export class UsersService {
   }
 
   async removeUser(id: string, tenantId: string, actorUserId: string, requestMeta?: { requestId?: string | undefined; ipAddress?: string | undefined; userAgent?: string | undefined }) {
+    // Check if it's an invitation ID (starts with "inv_")
+    if (id.startsWith("inv_")) {
+      // This is an invited user - cancel the invitation instead
+      const invitationService = new InvitationService();
+      return invitationService.cancelInvitation(id, tenantId, actorUserId, requestMeta);
+    }
+
+    // It's a real user - proceed with normal deletion
     const user = await this.repository.findUserById(id, tenantId);
     if (!user) {
       throw new NotFoundError("User not found.");

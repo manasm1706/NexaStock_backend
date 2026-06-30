@@ -2,7 +2,7 @@ import { POSRepository } from "./repository";
 import { toPOSInvoiceDTO } from "./mapper";
 import { prisma } from "../../lib/db";
 import { createId } from "../../lib/crypto";
-import { resolveLocationScope, buildAuditMetadata } from "../../lib/locationScoper";
+import { buildAuditMetadata } from "../../lib/locationScoper";
 import { ForbiddenError } from "../../lib/errors";
 import type { CreatePOSInvoiceInput } from "./schema";
 import { AnalyticsService } from "../analytics/service";
@@ -11,14 +11,7 @@ import { AIService } from "../ai/service";
 export class POSService {
   private readonly repository = new POSRepository();
 
-  async getSummary(tenantId: string, actorId?: string, roleCode?: string) {
-    let locationIds: string[] | undefined = undefined;
-    if (actorId && roleCode) {
-      const scope = await resolveLocationScope(actorId, tenantId, roleCode);
-      if (scope.isRestricted) {
-        locationIds = scope.locationIds;
-      }
-    }
+  async getSummary(tenantId: string, locationIds?: string[]) {
     const { productsCount, locationsCount, openInvoicesCount } = await this.repository.getCounts(tenantId, locationIds);
     return {
       products: productsCount,
@@ -27,12 +20,11 @@ export class POSService {
     };
   }
 
-  async checkout(input: CreatePOSInvoiceInput, actorId: string, roleCode: string, tenantId: string) {
+  async checkout(input: CreatePOSInvoiceInput, actorId: string, roleCode: string, tenantId: string, locationIds?: string[]) {
     const { locationId, paymentMode, customerName, customerPhone, lines } = input;
 
     // Check location permission scope
-    const scope = await resolveLocationScope(actorId, tenantId, roleCode);
-    if (scope.isRestricted && !scope.locationIds.includes(locationId)) {
+    if (locationIds && !locationIds.includes(locationId)) {
       throw new ForbiddenError("You do not have permission to execute POS checkout at this location");
     }
 

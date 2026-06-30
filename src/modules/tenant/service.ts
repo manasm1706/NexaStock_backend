@@ -120,6 +120,52 @@ export class TenantService {
         }
       });
 
+      // 3.1 Seed default permissions and permission matrix (Task 12)
+      const defaultPermissions = [
+        { code: "PRODUCT_MANAGEMENT", name: "Product Catalog Management", module: "products", action: "manage" },
+        { code: "INVENTORY_READ", name: "Read Inventory Levels", module: "inventory", action: "read" },
+        { code: "INVENTORY_WRITE", name: "Modify Inventory & Adjustments", module: "inventory", action: "write" },
+        { code: "POS_SALES", name: "Process Point of Sale Checkout", module: "pos", action: "sales" },
+        { code: "ANALYTICS_READ", name: "Read Store Analytics & Metrics", module: "analytics", action: "read" },
+        { code: "AI_READ", name: "Read AI Center Recommendations", module: "ai", action: "read" },
+        { code: "SETTINGS_MANAGE", name: "Manage System Settings & Policies", module: "settings", action: "manage" },
+        { code: "USER_MANAGEMENT", name: "Manage Team Members & Invites", module: "users", action: "manage" },
+        { code: "TENANT_ADMIN", name: "Full Organization Control", module: "organization", action: "admin" },
+        { code: "AUDIT_READ", name: "Read Security Compliance Logs", module: "compliance", action: "read" },
+        { code: "DISPATCH_OPERATIONS", name: "Dispatch & Delivery Operations", module: "transfers", action: "dispatch" },
+        { code: "APPROVE_TRANSFER", name: "Approve Stock Transfers", module: "transfers", action: "approve" },
+        { code: "APPROVE_GRN", name: "Approve Goods Receipt Notes", module: "procurement", action: "approve_grn" },
+        { code: "APPROVE_DC", name: "Approve Delivery Challans", module: "transfers", action: "approve_dc" },
+        { code: "PROCESS_REFUND", name: "Process Sales Refunds", module: "pos", action: "refund" },
+        { code: "EXPORT_DATA", name: "Export Business Data", module: "analytics", action: "export" },
+        { code: "CONFIGURE_AI", name: "Configure AI Settings", module: "ai", action: "configure" }
+      ];
+
+      for (const perm of defaultPermissions) {
+        const permission = await tx.permission.create({
+          data: {
+            id: createId("perm"),
+            tenantId,
+            code: perm.code,
+            name: perm.name,
+            module: perm.module,
+            action: perm.action,
+            isSystem: true
+          }
+        });
+
+        // Grant all permissions to Business Owner role
+        await tx.rolePermission.create({
+          data: {
+            id: createId("rp"),
+            tenantId,
+            roleId: ownerRole.id,
+            permissionId: permission.id,
+            allowed: true
+          }
+        });
+      }
+
       // Build workspaceSettings based on chosen features
       const features = input.selectedFeatures || ["inventory", "pos", "analytics", "ai", "stores", "dealers"];
       

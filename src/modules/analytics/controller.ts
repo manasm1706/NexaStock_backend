@@ -7,7 +7,8 @@ export class AnalyticsController {
   dashboard = async (context: RequestContext) => {
     const startDate = context.query.get("startDate") || undefined;
     const endDate = context.query.get("endDate") || undefined;
-    return this.service.getDashboardData(context.tenantId, startDate, endDate, context.actorId, context.role);
+    const locationIds = context.isGlobalAccess ? undefined : context.assignedLocationIds;
+    return this.service.getDashboardData(context.tenantId, startDate, endDate, locationIds);
   };
 
   exportReport = async (context: RequestContext) => {

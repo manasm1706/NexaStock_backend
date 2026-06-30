@@ -76,6 +76,7 @@ model User {
   assignedLocations         UserLocation[]
   permissionOverrides       UserPermissionOverride[]
   tokenVersion              Int         @default(1)
+  profile                   UserProfile?
 
   @@unique([tenantId, email])
 

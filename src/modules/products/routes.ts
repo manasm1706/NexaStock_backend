@@ -4,16 +4,17 @@ import { validateBody } from "../../middleware/validation.middleware";
 import { createProductSchema } from "./schema";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { resolveTenant } from "../../middleware/tenant.middleware";
+import { enrichContext } from "../../middleware/enrich-context.middleware";
 import { requirePermission } from "../../middleware/permission.middleware";
 
 export function registerProductsRoutes(router: Router): void {
   const controller = new ProductsController();
 
-  router.route("GET", "/api/v1/products", [requireAuth, resolveTenant], controller.list);
+  router.route("GET", "/api/v1/products", [requireAuth, resolveTenant, enrichContext], controller.list);
   router.route(
     "POST",
     "/api/v1/products",
-    [requireAuth, resolveTenant, requirePermission("productManagement"), validateBody(createProductSchema)],
+    [requireAuth, resolveTenant, enrichContext, requirePermission("productManagement"), validateBody(createProductSchema)],
     controller.create
   );
 }

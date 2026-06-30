@@ -1,0 +1,30 @@
+model UserProfile {
+  id                   String    @id @default(cuid())
+  tenantId             String
+  userId               String    @unique
+
+  employeeId           String?   @db.VarChar(80)
+  contactNumber        String?   @db.VarChar(32)
+  shiftTiming          String?   @db.VarChar(80)
+  reportingManagerId   String?
+
+  maxDiscountPercent   Decimal?  @db.Decimal(5, 2)
+  refundLimit          Decimal?  @db.Decimal(14, 2)
+  posCounterId         String?   @db.VarChar(80)
+
+  canApproveTransfers  Boolean   @default(false)
+  canApproveGRN        Boolean   @default(false)
+  canApproveDC         Boolean   @default(false)
+  canManageSuppliers   Boolean   @default(false)
+  maxPOApprovalLimit   Decimal?  @db.Decimal(14, 2)
+
+  metadata             Json?
+
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+
+  tenant               Tenant    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  user                 User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([tenantId, userId])
+}

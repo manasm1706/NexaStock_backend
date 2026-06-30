@@ -4,6 +4,7 @@ import type { Router } from "../framework/router";
 import { prisma } from "../lib/db";
 import { requireAuth } from "../middleware/auth.middleware";
 import { resolveTenant } from "../middleware/tenant.middleware";
+import { enrichContext } from "../middleware/enrich-context.middleware";
 
 // Import route registries
 import { registerAuthRoutes } from "../modules/auth/routes";
@@ -23,7 +24,6 @@ import { registerSettingsRoutes } from "../modules/settings/routes";
 import { LocationsRepository } from "../modules/locations/repository";
 
 export function registerRoutes(router: Router, env: AppEnv): void {
-  const locationsRepo = new LocationsRepository();
 
   // 1. Meta / System Endpoints
   router.route("GET", "/api/v1/meta", [], () => ({
@@ -42,17 +42,53 @@ export function registerRoutes(router: Router, env: AppEnv): void {
     };
   });
 
-  router.route("GET", "/api/v1/modules", [requireAuth, resolveTenant], async (context) => {
-    const locations = await locationsRepo.findLocations(context.tenantId);
+  router.route("GET", "/api/v1/modules", [requireAuth, resolveTenant, enrichContext], async (context) => {
+    const role = context.role ?? "";
+    const permissions = context.permissions ?? [];
+
+    const has = (p: string) => permissions.includes(p);
+
+    // Role-specific module visibility
+    const isCashier = role === "cashier" || role === "CASHIER";
+    const isWarehouseManager = role === "warehouse_manager" || role === "WAREHOUSE_MANAGER";
+    const isStoreManager = role === "store_manager" || role === "STORE_MANAGER";
+    const isGlobal = context.isGlobalAccess ?? false;
+
+    let dashboardVariant: string;
+    let homeRoute: string;
+
+    if (isGlobal) {
+      dashboardVariant = role.includes("ops") || role.includes("OPS") ? "operations_manager" : "business_owner";
+      homeRoute = "/dashboard";
+    } else if (isStoreManager) {
+      dashboardVariant = "store_manager";
+      homeRoute = "/dashboard";
+    } else if (isWarehouseManager) {
+      dashboardVariant = "warehouse_manager";
+      homeRoute = "/dashboard";
+    } else if (isCashier) {
+      dashboardVariant = "cashier";
+      homeRoute = "/pos";
+    } else {
+      dashboardVariant = "business_owner";
+      homeRoute = "/dashboard";
+    }
 
     return {
-      inventory: true,
-      warehouse: locations.some((loc) => loc.locationType !== "STORE"),
-      pos: true,
-      analytics: true,
-      ai: true,
-      supplierManagement: true,
-      accounting: true
+      modules: {
+        overview: !isCashier,
+        inventory: has("INVENTORY_READ") || has("INVENTORY_WRITE") || isGlobal || isStoreManager || isWarehouseManager,
+        warehouse: isGlobal || isWarehouseManager,
+        pos: has("POS_SALES") || isCashier || isStoreManager || isGlobal,
+        analytics: has("ANALYTICS_READ") || isGlobal || isStoreManager || isWarehouseManager,
+        ai: has("AI_READ") || isGlobal,
+        stores: isGlobal || isStoreManager || isWarehouseManager,
+        settings: has("SETTINGS_MANAGE") || has("USER_MANAGEMENT") || isGlobal,
+        dealers: has("SUPPLIER_MANAGEMENT") || has("PROCUREMENT_MANAGEMENT") || isGlobal,
+        audit: has("AUDIT_READ") || isGlobal
+      },
+      dashboardVariant,
+      homeRoute
     };
   });
 
