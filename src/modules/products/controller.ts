@@ -11,6 +11,14 @@ export class ProductsController {
 
   create = async (context: RequestContext) => {
     const actorId = context.actorId!;
-    return this.service.createProduct(context.body as any, actorId, context.tenantId);
+    const roleCode = context.role!;
+    return this.service.createProduct(context.body as any, actorId, roleCode, context.tenantId);
+  };
+
+  update = async (context: RequestContext) => {
+    const id = context.params.id as string;
+    const actorId = context.actorId!;
+    const roleCode = context.role!;
+    return this.service.updateProduct(id, context.body as any, actorId, roleCode, context.tenantId);
   };
 }

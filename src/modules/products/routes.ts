@@ -1,7 +1,7 @@
 import type { Router } from "../../framework/router";
 import { ProductsController } from "./controller";
 import { validateBody } from "../../middleware/validation.middleware";
-import { createProductSchema } from "./schema";
+import { createProductSchema, updateProductSchema } from "./schema";
 import { requireAuth } from "../../middleware/auth.middleware";
 import { resolveTenant } from "../../middleware/tenant.middleware";
 import { enrichContext } from "../../middleware/enrich-context.middleware";
@@ -16,5 +16,11 @@ export function registerProductsRoutes(router: Router): void {
     "/api/v1/products",
     [requireAuth, resolveTenant, enrichContext, requirePermission("productManagement"), validateBody(createProductSchema)],
     controller.create
+  );
+  router.route(
+    "PUT",
+    "/api/v1/products/:id",
+    [requireAuth, resolveTenant, enrichContext, requirePermission("productManagement"), validateBody(updateProductSchema)],
+    controller.update
   );
 }
