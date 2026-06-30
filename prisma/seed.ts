@@ -18,6 +18,17 @@ async function main() {
     console.log("Connected to database. Cleaning tables...");
 
     // Delete in dependency order
+    await prisma.userSession.deleteMany({});
+    await prisma.pOSSession.deleteMany({});
+    await prisma.userProfile.deleteMany({});
+    await prisma.userLocation.deleteMany({});
+    await prisma.userPermissionOverride.deleteMany({});
+    await prisma.rolePermission.deleteMany({});
+    await prisma.inventoryMovement.deleteMany({});
+    await prisma.stockAdjustment.deleteMany({});
+    await prisma.saleItem.deleteMany({});
+    await prisma.sale.deleteMany({});
+    await prisma.auditLog.deleteMany({});
     await prisma.aIRecommendation.deleteMany({});
     await prisma.alert.deleteMany({});
     await prisma.forecastRecord.deleteMany({});
@@ -47,7 +58,7 @@ async function main() {
         status: "ACTIVE",
         operationalModel: "HYBRID",
         industry: "multi-channel retail",
-        primaryCurrency: "USD",
+        primaryCurrency: "INR",
         timezone: "Asia/Kolkata",
         locale: "en-IN",
         onboardingStatus: "completed"
@@ -58,7 +69,7 @@ async function main() {
       data: {
         tenantId: tenant.id,
         operationalModel: "HYBRID",
-        currencyCode: "USD",
+        currencyCode: "INR",
         timezone: "Asia/Kolkata",
         locale: "en-IN",
         valuationMethod: "FIFO"

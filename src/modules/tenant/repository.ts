@@ -22,7 +22,7 @@ export class TenantRepository {
         onboardingStatus: "completed",
         operationalModel: "HYBRID",
         industry: data.industry,
-        primaryCurrency: data.primaryCurrency || "USD",
+        primaryCurrency: data.primaryCurrency || "INR",
         timezone: data.timezone || "UTC"
       }
     });
@@ -39,7 +39,7 @@ export class TenantRepository {
         id: createId("ts"),
         tenantId: data.tenantId,
         operationalModel: "HYBRID",
-        currencyCode: data.currencyCode || "USD",
+        currencyCode: data.currencyCode || "INR",
         timezone: data.timezone || "UTC",
         aiPreferences: data.aiPreference ? { defaultAutonomy: data.aiPreference } : {}
       }

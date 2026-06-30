@@ -140,7 +140,7 @@ export class UsersController {
       include: {
         role: true,
         profile: true,
-        locations: { include: { location: true } },
+        assignedLocations: { include: { location: true } },
         permissionOverrides: { include: { permission: true } }
       }
     });
@@ -148,6 +148,27 @@ export class UsersController {
     if (!user) {
       throw new NotFoundError("User not found.");
     }
+
+    const profileData = user.profile ? {
+      id: user.profile.id,
+      tenantId: user.profile.tenantId,
+      userId: user.profile.userId,
+      employeeId: user.profile.employeeId,
+      contactNumber: user.profile.contactNumber,
+      shiftTiming: user.profile.shiftTiming,
+      reportingManagerId: user.profile.reportingManagerId,
+      maxDiscountPercent: user.profile.maxDiscountPercent,
+      refundLimit: user.profile.refundLimit,
+      posCounterId: user.profile.posCounterId,
+      canApproveTransfers: user.profile.canApproveTransfers,
+      canApproveGRN: user.profile.canApproveGRN,
+      canApproveDC: user.profile.canApproveDC,
+      canManageSuppliers: user.profile.canManageSuppliers,
+      maxPOApprovalLimit: user.profile.maxPOApprovalLimit,
+      createdAt: user.profile.createdAt,
+      updatedAt: user.profile.updatedAt,
+      ...(user.profile.metadata as Record<string, any> || {})
+    } : null;
 
     return {
       id: user.id,
@@ -159,13 +180,13 @@ export class UsersController {
         code: user.role.code,
         name: user.role.name
       },
-      profile: user.profile,
-      locations: user.locations.map(ul => ({
+      profile: profileData,
+      locations: user.assignedLocations.map((ul: any) => ({
         locationId: ul.locationId,
         name: ul.location.name,
         type: ul.location.locationType
       })),
-      permissionOverrides: user.permissionOverrides.map(ov => ({
+      permissionOverrides: user.permissionOverrides.map((ov: any) => ({
         permissionId: ov.permissionId,
         permissionName: ov.permission.name,
         allowed: ov.allowed
@@ -194,31 +215,37 @@ export class UsersController {
       where: { userId, tenantId }
     });
 
+    const currentMeta = (profile?.metadata as Record<string, any>) || {};
+    const updatedMeta = {
+      ...currentMeta,
+      jobTitle: body.jobTitle !== undefined ? body.jobTitle : currentMeta.jobTitle || null,
+      dateOfBirth: body.dateOfBirth !== undefined ? body.dateOfBirth : currentMeta.dateOfBirth || null,
+      phoneNumber: body.phoneNumber !== undefined ? body.phoneNumber : currentMeta.phoneNumber || null,
+      emergencyContact: body.emergencyContact !== undefined ? body.emergencyContact : currentMeta.emergencyContact || null,
+      emergencyPhone: body.emergencyPhone !== undefined ? body.emergencyPhone : currentMeta.emergencyPhone || null,
+      hireDate: body.hireDate !== undefined ? body.hireDate : currentMeta.hireDate || null,
+      employmentType: body.employmentType !== undefined ? body.employmentType : currentMeta.employmentType || null,
+      workSchedule: body.workSchedule !== undefined ? body.workSchedule : currentMeta.workSchedule || null,
+      probationEndDate: body.probationEndDate !== undefined ? body.probationEndDate : currentMeta.probationEndDate || null,
+      managerUserId: body.managerUserId !== undefined ? body.managerUserId : currentMeta.managerUserId || null,
+      skills: body.skills !== undefined ? body.skills : currentMeta.skills || null,
+      certifications: body.certifications !== undefined ? body.certifications : currentMeta.certifications || null,
+      nationalId: body.nationalId !== undefined ? body.nationalId : currentMeta.nationalId || null,
+      passportNumber: body.passportNumber !== undefined ? body.passportNumber : currentMeta.passportNumber || null,
+      taxId: body.taxId !== undefined ? body.taxId : currentMeta.taxId || null,
+      bankAccountNumber: body.bankAccountNumber !== undefined ? body.bankAccountNumber : currentMeta.bankAccountNumber || null,
+      bankName: body.bankName !== undefined ? body.bankName : currentMeta.bankName || null,
+      bankBranch: body.bankBranch !== undefined ? body.bankBranch : currentMeta.bankBranch || null,
+      languagesSpoken: body.languagesSpoken !== undefined ? body.languagesSpoken : currentMeta.languagesSpoken || null,
+      profileImageUrl: body.profileImageUrl !== undefined ? body.profileImageUrl : currentMeta.profileImageUrl || null,
+      notes: body.notes !== undefined ? body.notes : currentMeta.notes || null
+    };
+
     if (profile) {
       profile = await prisma.userProfile.update({
         where: { id: profile.id },
         data: {
-          jobTitle: body.jobTitle !== undefined ? body.jobTitle : profile.jobTitle,
-          dateOfBirth: body.dateOfBirth !== undefined ? (body.dateOfBirth ? new Date(body.dateOfBirth) : null) : profile.dateOfBirth,
-          phoneNumber: body.phoneNumber !== undefined ? body.phoneNumber : profile.phoneNumber,
-          emergencyContact: body.emergencyContact !== undefined ? body.emergencyContact : profile.emergencyContact,
-          emergencyPhone: body.emergencyPhone !== undefined ? body.emergencyPhone : profile.emergencyPhone,
-          hireDate: body.hireDate !== undefined ? (body.hireDate ? new Date(body.hireDate) : null) : profile.hireDate,
-          employmentType: body.employmentType !== undefined ? body.employmentType : profile.employmentType,
-          workSchedule: body.workSchedule !== undefined ? body.workSchedule : profile.workSchedule,
-          probationEndDate: body.probationEndDate !== undefined ? (body.probationEndDate ? new Date(body.probationEndDate) : null) : profile.probationEndDate,
-          managerUserId: body.managerUserId !== undefined ? body.managerUserId : profile.managerUserId,
-          skills: body.skills !== undefined ? body.skills : profile.skills,
-          certifications: body.certifications !== undefined ? body.certifications : profile.certifications,
-          nationalId: body.nationalId !== undefined ? body.nationalId : profile.nationalId,
-          passportNumber: body.passportNumber !== undefined ? body.passportNumber : profile.passportNumber,
-          taxId: body.taxId !== undefined ? body.taxId : profile.taxId,
-          bankAccountNumber: body.bankAccountNumber !== undefined ? body.bankAccountNumber : profile.bankAccountNumber,
-          bankName: body.bankName !== undefined ? body.bankName : profile.bankName,
-          bankBranch: body.bankBranch !== undefined ? body.bankBranch : profile.bankBranch,
-          languagesSpoken: body.languagesSpoken !== undefined ? body.languagesSpoken : profile.languagesSpoken,
-          profileImageUrl: body.profileImageUrl !== undefined ? body.profileImageUrl : profile.profileImageUrl,
-          notes: body.notes !== undefined ? body.notes : profile.notes
+          metadata: updatedMeta
         }
       });
     } else {
@@ -227,27 +254,7 @@ export class UsersController {
           id: createId("uprof"),
           tenantId,
           userId,
-          jobTitle: body.jobTitle || null,
-          dateOfBirth: body.dateOfBirth ? new Date(body.dateOfBirth) : null,
-          phoneNumber: body.phoneNumber || null,
-          emergencyContact: body.emergencyContact || null,
-          emergencyPhone: body.emergencyPhone || null,
-          hireDate: body.hireDate ? new Date(body.hireDate) : null,
-          employmentType: body.employmentType || null,
-          workSchedule: body.workSchedule || null,
-          probationEndDate: body.probationEndDate ? new Date(body.probationEndDate) : null,
-          managerUserId: body.managerUserId || null,
-          skills: body.skills || null,
-          certifications: body.certifications || null,
-          nationalId: body.nationalId || null,
-          passportNumber: body.passportNumber || null,
-          taxId: body.taxId || null,
-          bankAccountNumber: body.bankAccountNumber || null,
-          bankName: body.bankName || null,
-          bankBranch: body.bankBranch || null,
-          languagesSpoken: body.languagesSpoken || null,
-          profileImageUrl: body.profileImageUrl || null,
-          notes: body.notes || null
+          metadata: updatedMeta
         }
       });
     }
@@ -270,6 +277,11 @@ export class UsersController {
       }
     });
 
-    return { success: true, profile };
+    const returnedProfile = {
+      ...profile,
+      ...updatedMeta
+    };
+
+    return { success: true, profile: returnedProfile };
   };
 }

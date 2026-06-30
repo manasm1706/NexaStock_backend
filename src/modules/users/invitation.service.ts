@@ -118,7 +118,7 @@ export class InvitationService {
         data: {
           id: createId("tset"),
           tenantId,
-          currencyCode: "USD",
+          currencyCode: "INR",
           timezone: "Asia/Kolkata",
           locale: "en-IN"
         }
@@ -386,27 +386,29 @@ export class InvitationService {
             id: createId("uprof"),
             tenantId: details.tenantId,
             userId,
-            jobTitle: invite.userProfile.jobTitle || null,
-            dateOfBirth: invite.userProfile.dateOfBirth ? new Date(invite.userProfile.dateOfBirth) : null,
-            phoneNumber: invite.userProfile.phoneNumber || null,
-            emergencyContact: invite.userProfile.emergencyContact || null,
-            emergencyPhone: invite.userProfile.emergencyPhone || null,
-            hireDate: invite.userProfile.hireDate ? new Date(invite.userProfile.hireDate) : null,
-            employmentType: invite.userProfile.employmentType || null,
-            workSchedule: invite.userProfile.workSchedule || null,
-            probationEndDate: invite.userProfile.probationEndDate ? new Date(invite.userProfile.probationEndDate) : null,
-            managerUserId: invite.userProfile.managerUserId || null,
-            skills: invite.userProfile.skills || null,
-            certifications: invite.userProfile.certifications || null,
-            nationalId: invite.userProfile.nationalId || null,
-            passportNumber: invite.userProfile.passportNumber || null,
-            taxId: invite.userProfile.taxId || null,
-            bankAccountNumber: invite.userProfile.bankAccountNumber || null,
-            bankName: invite.userProfile.bankName || null,
-            bankBranch: invite.userProfile.bankBranch || null,
-            languagesSpoken: invite.userProfile.languagesSpoken || null,
-            profileImageUrl: invite.userProfile.profileImageUrl || null,
-            notes: invite.userProfile.notes || null
+            metadata: {
+              jobTitle: invite.userProfile.jobTitle || null,
+              dateOfBirth: invite.userProfile.dateOfBirth || null,
+              phoneNumber: invite.userProfile.phoneNumber || null,
+              emergencyContact: invite.userProfile.emergencyContact || null,
+              emergencyPhone: invite.userProfile.emergencyPhone || null,
+              hireDate: invite.userProfile.hireDate || null,
+              employmentType: invite.userProfile.employmentType || null,
+              workSchedule: invite.userProfile.workSchedule || null,
+              probationEndDate: invite.userProfile.probationEndDate || null,
+              managerUserId: invite.userProfile.managerUserId || null,
+              skills: invite.userProfile.skills || null,
+              certifications: invite.userProfile.certifications || null,
+              nationalId: invite.userProfile.nationalId || null,
+              passportNumber: invite.userProfile.passportNumber || null,
+              taxId: invite.userProfile.taxId || null,
+              bankAccountNumber: invite.userProfile.bankAccountNumber || null,
+              bankName: invite.userProfile.bankName || null,
+              bankBranch: invite.userProfile.bankBranch || null,
+              languagesSpoken: invite.userProfile.languagesSpoken || null,
+              profileImageUrl: invite.userProfile.profileImageUrl || null,
+              notes: invite.userProfile.notes || null
+            }
           }
         });
       }

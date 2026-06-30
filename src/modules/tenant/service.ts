@@ -44,7 +44,7 @@ export class TenantService {
 
           // Ensure industry is never empty — required non-nullable field
           industry: input.businessType || input.industry || "general",
-          primaryCurrency: input.currency || "USD",
+          primaryCurrency: input.currency || "INR",
           timezone: input.timezone || "UTC"
         }
       });
@@ -53,7 +53,7 @@ export class TenantService {
       await tx.tenantSettings.create({
         data: {
           tenantId,
-          currencyCode: input.currency || "USD",
+          currencyCode: input.currency || "INR",
           timezone: input.timezone || "UTC",
           // aiPreferences is Json? — must be an object, not a plain string
           aiPreferences: { mode: input.aiPreference || "Co-pilot" },

@@ -651,7 +651,7 @@ export class SettingsController {
 
     const roles = await prisma.role.findMany({
       where: { tenantId },
-      include: { permissions: { include: { permission: true } } },
+      include: { rolePermissions: { include: { permission: true } } },
       orderBy: { createdAt: "asc" }
     });
 
@@ -662,7 +662,7 @@ export class SettingsController {
 
     const matrix = roles.map(role => {
       const permMap: Record<string, boolean> = {};
-      for (const rp of role.permissions) {
+      for (const rp of role.rolePermissions) {
         permMap[rp.permission.code] = rp.allowed;
       }
       return {
